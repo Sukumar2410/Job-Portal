@@ -1,0 +1,439 @@
+<!-- ========================================================= -->
+<!-- PAGE CONTAINER                                            -->
+<!-- ========================================================= -->
+
+<div class="career-container">
+
+  <!-- ======================================================= -->
+  <!-- PAGE HEADER                                              -->
+  <!-- ======================================================= -->
+
+  <div class="career-header">
+
+    <div>
+      <h1>{{ pageTitle }}</h1>
+
+      <p>
+        {{ pageDescription }}
+      </p>
+    </div>
+
+  </div>
+
+
+  <!-- ======================================================= -->
+  <!-- MAIN 3-COLUMN LAYOUT                                    -->
+  <!-- ======================================================= -->
+
+  <div class="career-layout">
+
+
+    <!-- ===================================================== -->
+    <!-- LEFT PANEL                                            -->
+    <!-- ===================================================== -->
+
+    <aside class="left-panel">
+
+      <h3>Quick Actions</h3>
+
+      <button
+        *ngFor="let item of quickActions"
+        type="button"
+        (click)="item.action()">
+
+        {{ item.icon }} {{ item.title }}
+
+      </button>
+
+    </aside>
+
+
+    <!-- ===================================================== -->
+    <!-- CENTER CHAT PANEL                                     -->
+    <!-- ===================================================== -->
+
+    <section class="chat-panel">
+
+
+      <!-- =================================================== -->
+      <!-- CHAT HEADER                                         -->
+      <!-- =================================================== -->
+
+      <div class="chat-header">
+
+        AI Conversation
+
+      </div>
+
+
+      <!-- =================================================== -->
+      <!-- CHAT TOOLBAR                                        -->
+      <!-- =================================================== -->
+
+      <div class="chat-toolbar">
+
+        <button
+          type="button"
+          class="toolbar-btn primary"
+          (click)="newChat()">
+
+          ➕ New Chat
+
+        </button>
+
+
+        <button
+          type="button"
+          class="toolbar-btn warning"
+          (click)="clearChat()">
+
+          🗑 Clear Chat
+
+        </button>
+
+
+        <button
+          type="button"
+          class="export-btn"
+          (click)="exportChat()">
+
+          📥 Export Chat
+
+        </button>
+
+      </div>
+
+
+      <!-- =================================================== -->
+      <!-- CHAT BODY                                           -->
+      <!-- =================================================== -->
+
+      <div
+        class="chat-body"
+        #chatContainer>
+
+
+        <!-- ================================================= -->
+        <!-- ALL CHAT MESSAGES                                 -->
+        <!-- ================================================= -->
+
+        <div
+          *ngFor="let chat of messages()"
+          class="message"
+          [ngClass]="chat.role">
+
+
+          <!-- =============================================== -->
+          <!-- ASSISTANT MESSAGE                              -->
+          <!-- =============================================== -->
+
+          <div
+            *ngIf="chat.role === 'assistant'"
+            class="assistant-card">
+
+
+            <!-- Assistant Header -->
+
+            <div class="message-header">
+
+              <div class="avatar">
+
+                🤖
+
+              </div>
+
+
+              <div class="title">
+
+                <strong>
+                  {{ assistantName }}
+                </strong>
+
+                <small>
+                  {{ chat.timestamp | date:'shortTime' }}
+                </small>
+
+              </div>
+
+            </div>
+
+
+            <!-- Assistant Content -->
+
+            <markdown
+              [data]="chat.message">
+            </markdown>
+
+
+            <!-- Assistant Actions -->
+
+            <div class="message-actions">
+
+              <button
+                type="button"
+                class="action-btn"
+                (click)="copyMessage(chat)">
+
+                {{ chat.copied ? '✅ Copied!' : '📋 Copy' }}
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <!-- =============================================== -->
+          <!-- USER MESSAGE                                    -->
+          <!-- =============================================== -->
+
+          <div
+            *ngIf="chat.role === 'user'"
+            class="user-card">
+
+
+            <div class="message-header user-header">
+
+              <strong>
+                You
+              </strong>
+
+              <small>
+                {{ chat.timestamp | date:'shortTime' }}
+              </small>
+
+            </div>
+
+
+            {{ chat.message }}
+
+          </div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- THINKING INDICATOR                                -->
+        <!-- ================================================= -->
+
+        <div
+          *ngIf="loading()"
+          class="message assistant">
+
+          <div class="assistant-card thinking">
+
+            🤖 Thinking...
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =================================================== -->
+      <!-- CHAT FOOTER / INPUT AREA                            -->
+      <!-- =================================================== -->
+
+      <div class="chat-footer">
+
+
+        <!-- =============================================== -->
+        <!-- SELECTED FILES                                  -->
+        <!-- =============================================== -->
+
+        <div
+          *ngIf="selectedFiles.length > 0"
+          class="attachment-preview">
+
+
+          <div
+            *ngFor="let file of selectedFiles; let i = index"
+            class="attachment-item">
+
+
+            <!-- File Information -->
+
+            <div class="attachment-info">
+
+              <span class="attachment-icon">
+
+                {{ getFileIcon(file) }}
+
+              </span>
+
+
+              <div class="attachment-details">
+
+                <span class="attachment-name">
+
+                  {{ file.name }}
+
+                </span>
+
+
+                <span class="attachment-size">
+
+                  {{ formatFileSize(file.size) }}
+
+                </span>
+
+              </div>
+
+            </div>
+
+
+            <!-- Remove File -->
+
+            <button
+              type="button"
+              class="remove-attachment-btn"
+              (click)="removeFile(i)"
+              [attr.aria-label]="'Remove ' + file.name"
+              title="Remove file">
+
+              ×
+
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <!-- =============================================== -->
+        <!-- MESSAGE INPUT WRAPPER                           -->
+        <!-- =============================================== -->
+
+        <div class="message-input-wrapper">
+
+
+          <!-- ============================================= -->
+          <!-- HIDDEN FILE INPUT                             -->
+          <!-- ============================================= -->
+
+          <input
+            #fileInput
+            type="file"
+            class="hidden-file-input"
+            multiple
+            accept=".pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.jpg,.jpeg,.png"
+            (change)="onFilesSelected($event)"
+          />
+
+
+          <!-- ============================================= -->
+          <!-- PLUS / ATTACHMENT BUTTON                      -->
+          <!-- ============================================= -->
+
+          <button
+            type="button"
+            class="attachment-btn"
+            (click)="fileInput.click()"
+            [disabled]="loading()"
+            title="Attach files"
+            aria-label="Attach files">
+
+            +
+
+          </button>
+
+
+          <!-- ============================================= -->
+          <!-- TEXTAREA                                      -->
+          <!-- ============================================= -->
+
+          <textarea
+            [(ngModel)]="message"
+            rows="3"
+            placeholder="Ask anything..."
+            (keydown)="onKeyDown($event)">
+          </textarea>
+
+
+          <!-- ============================================= -->
+          <!-- SEND BUTTON                                   -->
+          <!-- ============================================= -->
+
+          <button
+            type="button"
+            (click)="sendMessage()"
+            [disabled]="loading()">
+
+            {{ loading() ? 'Thinking...' : 'Send' }}
+
+          </button>
+
+
+        </div>
+
+      </div>
+
+
+    </section>
+
+
+    <!-- ===================================================== -->
+    <!-- RIGHT PANEL                                           -->
+    <!-- ===================================================== -->
+
+    <aside class="right-panel">
+
+
+      <!-- =================================================== -->
+      <!-- BACK TO DASHBOARD                                   -->
+      <!-- =================================================== -->
+
+      <a
+        [routerLink]="dashboardRoute"
+        class="back-btn">
+
+        ← Back to Dashboard
+
+      </a>
+
+
+      <!-- =================================================== -->
+      <!-- RECENT CHATS                                       -->
+      <!-- =================================================== -->
+
+      <h3>Recent Chats</h3>
+
+
+      <div
+        *ngFor="let conversation of conversations()"
+        class="history-item">
+
+
+        <!-- Conversation -->
+
+        <div
+          class="history-content"
+          (click)="loadConversation(conversation.id)">
+
+          {{ conversation.title }}
+
+        </div>
+
+
+        <!-- Delete -->
+
+        <button
+          type="button"
+          class="delete-chat-btn"
+          (click)="deleteConversation(conversation.id, $event)">
+
+          🗑
+
+        </button>
+
+
+      </div>
+
+
+    </aside>
+
+
+  </div>
+
+</div>

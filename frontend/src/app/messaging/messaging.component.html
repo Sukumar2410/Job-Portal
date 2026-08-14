@@ -1,0 +1,1394 @@
+<main class="messaging-page">
+
+  <!-- ==========================================================
+       MESSAGING PAGE HEADER
+  =========================================================== -->
+
+  <div class="mb-8">
+
+    <!-- Back navigation -->
+
+    <button
+      type="button"
+      (click)="goToDashboard()"
+      class="inline-flex items-center gap-2
+             text-sm font-medium text-gray-500
+             hover:text-primary-600
+             transition-colors mb-4"
+    >
+
+      <span class="text-lg leading-none">
+        ←
+      </span>
+
+      <span>
+        Dashboard
+      </span>
+
+    </button>
+
+
+    <!-- Main header -->
+
+    <div
+      class="flex flex-col sm:flex-row
+             sm:items-end sm:justify-between
+             gap-4"
+    >
+
+      <!-- Left -->
+
+      <div>
+
+        <div
+          class="text-xs font-bold
+                 tracking-[0.16em]
+                 text-primary-600
+                 uppercase mb-2"
+        >
+          Private Messaging
+        </div>
+
+
+        <h1
+          class="text-3xl sm:text-4xl
+                 font-bold text-gray-900
+                 tracking-tight"
+        >
+          Messages
+        </h1>
+
+
+        <p
+          class="mt-2 text-sm sm:text-base
+                 text-gray-500"
+        >
+          Connect directly with professionals
+          and continue your conversations.
+        </p>
+
+      </div>
+
+
+      <!-- Right -->
+
+      <div class="flex-shrink-0">
+
+        <button
+          type="button"
+          (click)="openNewConversation()"
+          class="inline-flex items-center
+                 justify-center gap-2
+                 px-5 py-2.5
+                 rounded-xl
+                 bg-gradient-to-r
+                 from-primary-600 to-purple-600
+                 text-white
+                 text-sm font-semibold
+                 shadow-md
+                 shadow-primary-500/20
+                 hover:shadow-lg
+                 hover:shadow-primary-500/30
+                 hover:-translate-y-0.5
+                 active:translate-y-0
+                 transition-all duration-200"
+        >
+
+          <span
+            class="text-lg leading-none"
+          >
+            +
+          </span>
+
+          <span>
+            New Conversation
+          </span>
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- ==========================================================
+       MAIN MESSAGING CONTAINER
+  =========================================================== -->
+
+  <section class="messaging-container">
+
+
+    <!-- ========================================================
+         CONVERSATION SIDEBAR
+    ========================================================= -->
+
+    <aside class="conversation-sidebar">
+
+
+      <!-- SIDEBAR HEADER -->
+
+      <div class="sidebar-header">
+
+        <div>
+
+          <h2>
+            Conversations
+          </h2>
+
+          <span>
+
+            {{ conversations().length }}
+
+            {{
+              conversations().length === 1
+                ? 'conversation'
+                : 'conversations'
+            }}
+
+          </span>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="refresh-button"
+          (click)="loadConversations()"
+          [disabled]="loadingConversations()"
+          title="Refresh conversations"
+        >
+          ↻
+        </button>
+
+      </div>
+
+
+
+      <!-- ======================================================
+           SIDEBAR LOADING
+      ======================================================= -->
+
+      <div
+        *ngIf="loadingConversations()"
+        class="sidebar-loading"
+      >
+
+        <div class="conversation-skeleton"></div>
+
+        <div class="conversation-skeleton"></div>
+
+        <div class="conversation-skeleton"></div>
+
+      </div>
+
+
+
+      <!-- ======================================================
+           SIDEBAR ERROR
+      ======================================================= -->
+
+      <div
+        *ngIf="
+          !loadingConversations() &&
+          error()
+        "
+        class="sidebar-error"
+      >
+
+        <div class="error-icon">
+          ⚠
+        </div>
+
+        <p>
+          {{ error() }}
+        </p>
+
+        <button
+          type="button"
+          (click)="loadConversations()"
+        >
+          Try Again
+        </button>
+
+      </div>
+
+
+
+      <!-- ======================================================
+           EMPTY CONVERSATIONS
+      ======================================================= -->
+
+      <div
+        *ngIf="
+          !loadingConversations() &&
+          !error() &&
+          conversations().length === 0
+        "
+        class="empty-conversations"
+      >
+
+        <div class="empty-icon">
+          💬
+        </div>
+
+        <h3>
+          No conversations yet
+        </h3>
+
+        <p>
+          Your conversations will appear here.
+        </p>
+
+      </div>
+
+
+
+      <!-- ======================================================
+           CONVERSATION LIST
+      ======================================================= -->
+
+      <div
+        *ngIf="
+          !loadingConversations() &&
+          !error() &&
+          conversations().length > 0
+        "
+        class="conversation-list"
+      >
+
+        <button
+          type="button"
+
+          *ngFor="
+            let conversation of conversations();
+            trackBy: trackConversation
+          "
+
+          class="conversation-item"
+
+          [class.active]="
+            selectedConversation()?.id ===
+            conversation.id
+          "
+
+          (click)="
+            selectConversation(conversation)
+          "
+        >
+
+
+          <!-- AVATAR -->
+
+          <div class="conversation-avatar">
+
+            {{
+              getInitial(
+                getOtherUser(conversation)?.full_name
+              )
+            }}
+
+          </div>
+
+
+          <!-- CONVERSATION INFORMATION -->
+
+          <div class="conversation-info">
+
+            <div class="conversation-top-row">
+
+              <strong>
+
+                {{
+                  getOtherUser(conversation)?.full_name
+                  || 'Unknown User'
+                }}
+
+              </strong>
+
+
+              <span
+                *ngIf="conversation.last_message"
+              >
+
+                {{
+                  formatConversationTime(
+                    conversation.last_message.created_at
+                  )
+                }}
+
+              </span>
+
+            </div>
+
+
+            <div class="conversation-bottom-row">
+
+              <span class="message-preview">
+
+                {{
+                  getLastMessagePreview(
+                    conversation
+                  )
+                }}
+
+              </span>
+
+
+              <!-- UNREAD BADGE -->
+
+              <span
+                *ngIf="
+                  conversation.unread_count > 0
+                "
+                class="unread-badge"
+              >
+
+                {{
+                  conversation.unread_count > 99
+                    ? '99+'
+                    : conversation.unread_count
+                }}
+
+              </span>
+
+            </div>
+
+          </div>
+
+        </button>
+
+      </div>
+
+    </aside>
+
+    <!-- ========================================================
+     CHAT PANEL
+    ========================================================= -->
+
+    <section class="chat-panel flex flex-col min-h-0">
+
+
+      <!-- ======================================================
+          NO CONVERSATION SELECTED
+      ======================================================= -->
+
+      <div
+        *ngIf="!selectedConversation()"
+        class="no-conversation flex-1"
+      >
+
+        <div class="no-conversation-icon">
+          💬
+        </div>
+
+        <h2>
+          Your messages
+        </h2>
+
+        <p>
+          Select a conversation to view
+          your messages.
+        </p>
+
+      </div>
+
+
+
+      <!-- ======================================================
+          ACTIVE CONVERSATION
+      ======================================================= -->
+
+      <ng-container
+        *ngIf="selectedConversation() as conversation"
+      >
+
+
+        <!-- ====================================================
+            CHAT HEADER
+        ===================================================== -->
+
+        <header class="chat-header flex-shrink-0">
+
+          <div class="chat-user">
+
+
+            <!-- USER AVATAR -->
+
+            <div class="chat-avatar">
+
+              {{
+                getInitial(
+                  getOtherUser(conversation)?.full_name
+                )
+              }}
+
+            </div>
+
+
+            <!-- USER DETAILS -->
+
+            <div>
+
+              <h2>
+
+                {{
+                  getOtherUser(conversation)?.full_name
+                  || 'Unknown User'
+                }}
+
+              </h2>
+
+              <span>
+
+                {{
+                  getOtherUser(conversation)?.email
+                }}
+
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <!-- CHAT STATUS -->
+
+          <div class="chat-status">
+
+            <span class="status-dot"></span>
+
+            <span>
+              Conversation
+            </span>
+
+          </div>
+
+        </header>
+
+
+
+        <!-- ====================================================
+            MESSAGE AREA
+        ===================================================== -->
+
+        <div
+          #messagesContainer
+          class="messages-container relative flex-1 min-h-0 overflow-y-auto"
+        >
+
+
+          <!-- ==================================================
+              NEW MESSAGES INDICATOR
+          =================================================== -->
+
+          <button
+            *ngIf="newMessagesAvailable()"
+            type="button"
+            (click)="scrollToNewMessages()"
+            class="absolute
+                  bottom-4
+                  left-1/2
+                  -translate-x-1/2
+                  z-20
+                  inline-flex
+                  items-center
+                  gap-2
+                  px-4
+                  py-2
+                  rounded-full
+                  bg-primary-600
+                  text-white
+                  text-sm
+                  font-semibold
+                  shadow-lg
+                  hover:bg-primary-700
+                  hover:-translate-y-0.5
+                  transition-all"
+          >
+
+            <span>
+              ↓
+            </span>
+
+            <span>
+              New messages
+            </span>
+
+          </button>
+
+
+
+          <!-- ==================================================
+              LOADING
+          =================================================== -->
+
+          <div
+            *ngIf="loadingMessages()"
+            class="messages-loading"
+          >
+
+            <div class="message-loading-row received">
+
+              <div class="message-loading-bubble"></div>
+
+            </div>
+
+
+            <div class="message-loading-row sent">
+
+              <div class="message-loading-bubble"></div>
+
+            </div>
+
+
+            <div class="message-loading-row received">
+
+              <div class="message-loading-bubble short"></div>
+
+            </div>
+
+          </div>
+
+
+
+          <!-- ==================================================
+              ERROR
+          =================================================== -->
+
+          <div
+            *ngIf="
+              !loadingMessages() &&
+              messagesError()
+            "
+            class="messages-error"
+          >
+
+            <div>
+              ⚠️
+            </div>
+
+            <p>
+              {{ messagesError() }}
+            </p>
+
+            <button
+              type="button"
+              (click)="loadMessages(conversation.id)"
+            >
+              Try Again
+            </button>
+
+          </div>
+
+
+
+          <!-- ==================================================
+              EMPTY MESSAGES
+          =================================================== -->
+
+          <div
+            *ngIf="
+              !loadingMessages() &&
+              !messagesError() &&
+              messages().length === 0
+            "
+            class="empty-messages"
+          >
+
+            <div class="empty-messages-icon">
+              👋
+            </div>
+
+            <h3>
+              Start the conversation
+            </h3>
+
+            <p>
+
+              Send a message to
+
+              {{
+                getOtherUser(conversation)?.full_name
+                || 'this user'
+              }}.
+
+            </p>
+
+          </div>
+
+
+
+          <!-- ==================================================
+              MESSAGE LIST
+          =================================================== -->
+
+          <div
+            *ngIf="
+              !loadingMessages() &&
+              !messagesError() &&
+              messages().length > 0
+            "
+            class="message-list"
+          >
+
+            <div
+              *ngFor="
+                let message of messages();
+                trackBy: trackMessage
+              "
+
+              class="message-row"
+
+              [class.sent]="
+                isOwnMessage(message)
+              "
+
+              [class.received]="
+                !isOwnMessage(message)
+              "
+            >
+
+
+              <!-- RECEIVED AVATAR -->
+
+              <div
+                *ngIf="!isOwnMessage(message)"
+                class="message-avatar"
+              >
+
+                {{
+                  getInitial(message.sender_name)
+                }}
+
+              </div>
+
+
+
+              <!-- MESSAGE CONTENT -->
+
+              <div class="message-content-wrapper">
+
+
+                <!-- SENDER -->
+
+                <div class="message-sender">
+
+                  {{
+                    isOwnMessage(message)
+                      ? 'You'
+                      : message.sender_name
+                  }}
+
+                </div>
+
+
+                <!-- MESSAGE -->
+
+                <div class="message-bubble">
+
+                  {{ message.content }}
+
+                </div>
+
+
+                <!-- TIME -->
+
+                <div class="message-time">
+
+                  {{
+                    formatMessageTime(
+                      message.created_at
+                    )
+                  }}
+
+
+                  <!-- READ STATUS -->
+
+                  <span
+                    *ngIf="isOwnMessage(message)"
+                    class="read-status"
+                  >
+
+                    {{
+                      message.is_read
+                        ? '✓✓'
+                        : '✓'
+                    }}
+
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+
+        <!-- ====================================================
+            MESSAGE COMPOSER
+        ===================================================== -->
+
+        <footer class="message-composer flex-shrink-0">
+
+          <div class="composer-inner">
+
+
+            <!-- MESSAGE INPUT -->
+
+            <textarea
+              [value]="newMessage()"
+
+              (input)="
+                newMessage.set(
+                  $any($event.target).value
+                )
+              "
+
+              (keydown)="
+                handleMessageKeydown($event)
+              "
+
+              rows="1"
+
+              placeholder="Write a message..."
+
+              [disabled]="sendingMessage()"
+
+              class="message-input"
+            ></textarea>
+
+
+
+            <!-- SEND BUTTON -->
+
+            <button
+              type="button"
+
+              class="send-button"
+
+              (click)="sendMessage()"
+
+              [disabled]="
+                sendingMessage() ||
+                !newMessage().trim()
+              "
+
+              title="Send message"
+            >
+
+              <span
+                *ngIf="!sendingMessage()"
+              >
+                ➤
+              </span>
+
+
+              <span
+                *ngIf="sendingMessage()"
+                class="send-spinner"
+              ></span>
+
+            </button>
+
+          </div>
+
+
+          <!-- COMPOSER HINT -->
+
+          <div class="composer-hint">
+
+            Press
+            <strong>Enter</strong>
+            to send.
+
+            Use
+            <strong>Shift + Enter</strong>
+            for a new line.
+
+          </div>
+
+        </footer>
+
+
+      </ng-container>
+
+    </section>
+
+
+  <!-- ==========================================================
+       NEW CONVERSATION MODAL
+
+       IMPORTANT:
+       This is OUTSIDE .messaging-container.
+  =========================================================== -->
+
+  <div
+    *ngIf="showNewConversation()"
+
+    class="fixed inset-0
+           z-50
+           flex items-center
+           justify-center
+           bg-black/40
+           backdrop-blur-sm
+           px-4"
+  >
+
+
+    <!-- MODAL -->
+
+    <div
+      class="w-full
+             max-w-lg
+             bg-white
+             rounded-2xl
+             shadow-2xl
+             overflow-hidden"
+    >
+
+
+      <!-- ======================================================
+           MODAL HEADER
+      ======================================================= -->
+
+      <div
+        class="flex items-center
+               justify-between
+               px-6 py-4
+               border-b
+               border-gray-200"
+      >
+
+        <div>
+
+          <h2
+            class="text-lg
+                   font-bold
+                   text-gray-900"
+          >
+            Start New Conversation
+          </h2>
+
+
+          <p
+            class="text-sm
+                   text-gray-500
+                   mt-1"
+          >
+            Search for a candidate
+            or HR/recruiter.
+          </p>
+
+        </div>
+
+
+        <!-- CLOSE -->
+
+        <button
+          type="button"
+
+          (click)="
+            closeNewConversation()
+          "
+
+          class="w-9
+                 h-9
+                 rounded-lg
+                 flex items-center
+                 justify-center
+                 text-gray-500
+                 hover:text-gray-900
+                 hover:bg-gray-100
+                 transition"
+        >
+
+          ✕
+
+        </button>
+
+      </div>
+
+
+
+      <!-- ======================================================
+           SEARCH
+      ======================================================= -->
+
+      <div class="px-6 pt-5">
+
+
+        <!-- SEARCH INPUT -->
+
+        <div class="relative">
+
+          <span
+            class="absolute
+                   left-3
+                   top-1/2
+                   -translate-y-1/2
+                   text-gray-400"
+          >
+            🔍
+          </span>
+
+
+          <input
+            type="text"
+
+            [value]="
+              userSearch()
+            "
+
+            (input)="
+              userSearch.set(
+                $any($event.target).value
+              )
+            "
+
+            (keyup.enter)="
+              searchUsers()
+            "
+
+            placeholder="
+              Search by name or email...
+            "
+
+            class="w-full
+                   pl-10
+                   pr-4
+                   py-3
+                   border
+                   border-gray-300
+                   rounded-xl
+                   focus:outline-none
+                   focus:ring-2
+                   focus:ring-primary-500
+                   focus:border-transparent"
+          />
+
+        </div>
+
+
+
+        <!-- ==================================================
+             ROLE FILTERS
+        =================================================== -->
+
+        <div
+          class="flex
+                 items-center
+                 gap-2
+                 mt-4
+                 overflow-x-auto
+                 pb-1"
+        >
+
+
+          <!-- ALL -->
+
+          <button
+            type="button"
+
+            (click)="
+              setUserRoleFilter('')
+            "
+
+            class="px-4
+                   py-2
+                   rounded-full
+                   text-sm
+                   font-medium
+                   whitespace-nowrap
+                   transition-all"
+
+            [ngClass]="
+              userRoleFilter() === ''
+                ? 'bg-primary-600 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            "
+          >
+            All
+          </button>
+
+
+
+          <!-- CANDIDATES -->
+
+          <button
+            type="button"
+
+            (click)="
+              setUserRoleFilter(
+                'CANDIDATE'
+              )
+            "
+
+            class="px-4
+                   py-2
+                   rounded-full
+                   text-sm
+                   font-medium
+                   whitespace-nowrap
+                   transition-all"
+
+            [ngClass]="
+              userRoleFilter() === 'CANDIDATE'
+                ? 'bg-primary-600 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            "
+          >
+            Candidates
+          </button>
+
+
+
+          <!-- HR -->
+
+          <button
+            type="button"
+
+            (click)="
+              setUserRoleFilter('HR')
+            "
+
+            class="px-4
+                   py-2
+                   rounded-full
+                   text-sm
+                   font-medium
+                   whitespace-nowrap
+                   transition-all"
+
+            [ngClass]="
+              userRoleFilter() === 'HR'
+                ? 'bg-primary-600 text-white shadow-sm'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            "
+          >
+            HR / Recruiters
+          </button>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- ======================================================
+           USERS
+      ======================================================= -->
+
+      <div class="px-6 py-4">
+
+
+        <!-- LOADING USERS -->
+
+        <div
+          *ngIf="loadingUsers()"
+          class="py-8
+                 text-center
+                 text-gray-500"
+        >
+          Loading users...
+        </div>
+
+
+
+        <!-- USER LIST -->
+
+        <div
+          *ngIf="
+            !loadingUsers() &&
+            availableUsers().length > 0
+          "
+
+          class="max-h-80
+                 overflow-y-auto
+                 space-y-2"
+        >
+
+
+          <button
+            *ngFor="
+              let user of availableUsers()
+            "
+
+            type="button"
+
+            (click)="
+              selectUser(user)
+            "
+
+            class="w-full
+                   flex
+                   items-center
+                   gap-3
+                   p-3
+                   rounded-xl
+                   text-left
+                   border
+                   transition-all"
+
+            [ngClass]="
+              selectedUserId() === user.id
+                ? 'border-primary-500 bg-primary-50'
+                : 'border-transparent hover:bg-gray-50'
+            "
+          >
+
+
+            <!-- USER AVATAR -->
+
+            <div
+              class="w-11
+                     h-11
+                     rounded-full
+                     bg-gradient-to-br
+                     from-primary-500
+                     to-purple-600
+                     text-white
+                     flex
+                     items-center
+                     justify-center
+                     font-semibold
+                     flex-shrink-0"
+            >
+
+              {{
+                (
+                  user.full_name?.charAt(0)
+                  || user.email.charAt(0)
+                ) | uppercase
+              }}
+
+            </div>
+
+
+
+            <!-- USER DETAILS -->
+
+            <div
+              class="min-w-0
+                     flex-1"
+            >
+
+              <div
+                class="font-semibold
+                       text-gray-900
+                       truncate"
+              >
+
+                {{
+                  user.full_name
+                  || user.email
+                }}
+
+              </div>
+
+
+              <div
+                class="text-sm
+                       text-gray-500
+                       truncate"
+              >
+
+                {{ user.email }}
+
+              </div>
+
+
+              <div
+                *ngIf="user.role"
+                class="text-xs
+                       text-gray-400
+                       mt-0.5"
+              >
+
+                {{
+                  user.role === 'HR'
+                    ? 'HR / Recruiter'
+                    : 'Candidate'
+                }}
+
+              </div>
+
+            </div>
+
+
+
+            <!-- SELECTED -->
+
+            <div
+              *ngIf="
+                selectedUserId() === user.id
+              "
+
+              class="w-6
+                     h-6
+                     rounded-full
+                     bg-primary-600
+                     text-white
+                     flex
+                     items-center
+                     justify-center
+                     flex-shrink-0"
+            >
+
+              ✓
+
+            </div>
+
+          </button>
+
+        </div>
+
+
+
+        <!-- ==================================================
+             NO USERS
+        =================================================== -->
+
+        <div
+          *ngIf="
+            !loadingUsers() &&
+            availableUsers().length === 0
+          "
+
+          class="py-8
+                 text-center"
+        >
+
+          <div
+            class="text-3xl
+                   mb-2"
+          >
+            👥
+          </div>
+
+
+          <p
+            class="text-gray-600
+                   font-medium"
+          >
+            No users found
+          </p>
+
+
+          <p
+            class="text-sm
+                   text-gray-400
+                   mt-1"
+          >
+            Try a different name
+            or email.
+          </p>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- ======================================================
+           MODAL FOOTER
+      ======================================================= -->
+
+      <div
+        class="flex
+               items-center
+               justify-end
+               gap-3
+               px-6
+               py-4
+               border-t
+               border-gray-200
+               bg-gray-50"
+      >
+
+
+        <!-- CANCEL -->
+
+        <button
+          type="button"
+
+          (click)="
+            closeNewConversation()
+          "
+
+          class="px-4
+                 py-2
+                 rounded-lg
+                 border
+                 border-gray-300
+                 text-gray-700
+                 font-medium
+                 hover:bg-white
+                 transition"
+        >
+          Cancel
+        </button>
+
+
+
+        <!-- START CONVERSATION -->
+
+        <button
+          type="button"
+
+          (click)="
+            startConversation()
+          "
+
+          [disabled]="
+            !selectedUserId() ||
+            creatingConversation()
+          "
+
+          class="px-5
+                 py-2
+                 rounded-lg
+                 bg-primary-600
+                 text-white
+                 font-semibold
+                 hover:bg-primary-700
+                 disabled:opacity-50
+                 disabled:cursor-not-allowed
+                 transition"
+        >
+
+          <span
+            *ngIf="
+              !creatingConversation()
+            "
+          >
+            Start Conversation
+          </span>
+
+
+          <span
+            *ngIf="
+              creatingConversation()
+            "
+          >
+            Starting...
+          </span>
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  </section>
+
+</main>

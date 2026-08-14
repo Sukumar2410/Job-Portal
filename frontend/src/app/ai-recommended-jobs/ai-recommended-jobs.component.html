@@ -1,0 +1,346 @@
+<div class="ai-recommended-page">
+
+  <!-- PAGE HEADER -->
+    <div class="page-header">
+
+        <div class="header-content">
+
+            <div class="header-icon">
+                🤖
+            </div>
+
+            <div>
+                <h1>AI Recommended Jobs</h1>
+
+                <p>
+                Jobs matched to your profile, skills and experience.
+                </p>
+            </div>
+
+            </div>
+
+            <div class="header-actions">
+
+            <button
+                type="button"
+                class="back-btn"
+                (click)="goBackToDashboard()">
+
+                ← Back to Dashboard
+
+            </button>
+
+            <span class="recommendation-count">
+                {{ totalCount() }} Recommendations
+            </span>
+
+        </div>
+    </div>
+
+
+  <!-- =====================================================
+       LOADING STATE
+       ===================================================== -->
+
+  <div
+    *ngIf="loading()"
+    class="loading-state">
+
+    <div class="loading-spinner"></div>
+
+    <h3>
+      Finding the best jobs for you...
+    </h3>
+
+    <p>
+      AI is analyzing your profile, skills and experience.
+    </p>
+
+  </div>
+
+
+  <!-- =====================================================
+       ERROR STATE
+       ===================================================== -->
+
+  <div
+    *ngIf="!loading() && error()"
+    class="error-state">
+
+    <div class="error-icon">
+      ⚠️
+    </div>
+
+    <h3>
+      Unable to load recommendations
+    </h3>
+
+    <p>
+      {{ error() }}
+    </p>
+
+    <button
+      type="button"
+      class="retry-btn"
+      (click)="loadRecommendations()">
+
+      Try Again
+
+    </button>
+
+  </div>
+
+
+  <!-- =====================================================
+       EMPTY STATE
+       ===================================================== -->
+
+  <div
+    *ngIf="
+      !loading() &&
+      !error() &&
+      recommendations().length === 0
+    "
+    class="empty-state">
+
+    <div class="empty-icon">
+      🔍
+    </div>
+
+    <h3>
+      No recommended jobs found
+    </h3>
+
+    <p>
+      We couldn't find suitable job recommendations based
+      on your current profile. Try updating your skills,
+      experience or location.
+    </p>
+
+  </div>
+
+
+  <!-- =====================================================
+       RECOMMENDATIONS
+       ===================================================== -->
+
+  <section
+    *ngIf="
+      !loading() &&
+      !error() &&
+      recommendations().length > 0
+    "
+    class="recommendations-section">
+
+
+    <!-- Section Heading -->
+
+    <div class="section-heading">
+
+      <div>
+
+        <h2>
+          Recommended For You
+        </h2>
+
+        <p>
+          Ranked according to your profile match.
+        </p>
+
+      </div>
+
+      <span class="ai-badge">
+        ✨ AI Matched
+      </span>
+
+    </div>
+
+
+    <!-- ===================================================
+         JOB GRID
+         =================================================== -->
+
+    <div class="job-grid">
+
+        <div
+            class="job-card"
+            *ngFor="let job of recommendations()">
+
+            <!-- Card Header -->
+            <div class="job-card-header">
+
+                <div class="company-info">
+
+                    <div class="company-logo">
+
+                        <img
+                            *ngIf="job.company_logo"
+                            [src]="job.company_logo"
+                            [alt]="job.company_name"
+                        />
+
+                        <span *ngIf="!job.company_logo">
+                            🏢
+                        </span>
+
+                    </div>
+
+                    <div>
+
+                        <h3>
+                            {{ job.job_title }}
+                        </h3>
+
+                        <p>
+                            {{ job.company_name }}
+                        </p>
+
+                    </div>
+
+                </div>
+
+                <!-- Match Score -->
+                <div class="match-score">
+
+                    <div class="score-value">
+                    {{ job.match_score | number:'1.2-2' }}%
+                    </div>
+
+                    <div class="score-label">
+                    {{ getMatchLabel(job.match_score) }}
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Progress -->
+            <div class="match-progress">
+
+                <div class="progress-track">
+
+                    <div
+                    class="progress-fill"
+                    [style.width.%]="job.match_score">
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Job Information -->
+            <div class="job-info">
+
+                <span>
+                    📍 {{ job.location }}
+                </span>
+
+                <span>
+                    {{ formatWorkMode(job.work_mode) }}
+                </span>
+
+                <span>
+                    💼 {{ formatJobType(job.job_type) }}
+                </span>
+
+            </div>
+
+
+            <!-- Salary -->
+            <div class="salary">
+
+            💰
+            {{ formatSalary(job.min_salary, job.max_salary) }}
+
+            </div>
+
+
+            <!-- Matching Skills -->
+            <div
+                class="skills-section"
+                *ngIf="job.matched_skills?.length">
+
+                <div class="skill-group">
+
+                    <h4>
+                    ✓ Matching Skills
+                    </h4>
+
+                    <div class="skill-list">
+
+                    <span
+                        class="skill matched"
+                        *ngFor="let skill of job.matched_skills">
+
+                        {{ skill }}
+
+                    </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Missing Skills -->
+            <div
+                class="skills-section"
+                *ngIf="job.missing_skills?.length">
+
+                <div class="skill-group">
+
+                    <h4>
+                    + Skills to Improve
+                    </h4>
+
+                    <div class="skill-list">
+
+                    <span
+                        class="skill missing"
+                        *ngFor="let skill of job.missing_skills">
+
+                        {{ skill }}
+
+                    </span>
+
+                </div>
+
+            </div>
+
+            </div>
+
+
+            <!-- Actions -->
+            <div class="job-actions">
+
+                <button
+                    type="button"
+                    class="view-job-btn"
+                    (click)="viewJob(job)">
+
+                    View Job
+
+                </button>
+
+                <button
+                    type="button"
+                    class="save-job-btn"
+                    (click)="toggleSave(job)">
+
+                    {{ savedJobs().has(job.job_slug)
+                    ? '✓ Saved'
+                    : 'Save Job' }}
+
+                </button>
+
+            </div>
+
+        </div>
+
+        </div>
+  </section>
+
+</div>

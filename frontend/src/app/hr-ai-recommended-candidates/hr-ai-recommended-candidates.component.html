@@ -1,0 +1,420 @@
+<div class="ai-candidates-page">
+
+  <!-- ===================================================== -->
+  <!-- PAGE HEADER -->
+  <!-- ===================================================== -->
+
+  <div class="page-header">
+
+    <div class="header-content">
+
+      <div class="header-icon">
+        🤖
+      </div>
+
+      <div>
+
+        <h1>
+          AI Recommended Candidates
+        </h1>
+
+        <p>
+          Discover candidates ranked by their match with your job requirements.
+        </p>
+
+      </div>
+
+    </div>
+
+    <button
+      type="button"
+      class="back-btn"
+      (click)="goBackToDashboard()">
+
+      ← Back to Dashboard
+
+    </button>
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- JOB SELECTION -->
+  <!-- ===================================================== -->
+
+  <section class="job-selection">
+
+    <div class="section-header">
+
+      <div>
+
+        <h2>
+          Select a Job
+        </h2>
+
+        <p>
+          Choose one of your jobs to find the best matching candidates.
+        </p>
+
+      </div>
+
+      <span class="ai-badge">
+        ✨ AI Powered
+      </span>
+
+    </div>
+
+
+    <!-- Loading Jobs -->
+
+    <div
+      *ngIf="loadingJobs()"
+      class="loading-small">
+
+      Loading your jobs...
+
+    </div>
+
+
+    <!-- Job Cards -->
+
+    <div
+      *ngIf="!loadingJobs() && jobs().length > 0"
+      class="job-selector">
+
+      <button
+        *ngFor="let job of jobs()"
+        type="button"
+        class="job-option"
+        [class.selected]="selectedJobId() === job.id"
+        (click)="selectJob(job)">
+
+        <div>
+
+          <h3>
+            {{ job.title }}
+          </h3>
+
+          <p>
+            {{ job.location }}
+          </p>
+
+          <span>
+            {{ job.status }}
+          </span>
+
+        </div>
+
+        <div class="job-arrow">
+          →
+        </div>
+
+      </button>
+
+    </div>
+
+
+    <!-- No Jobs -->
+
+    <div
+      *ngIf="!loadingJobs() && jobs().length === 0"
+      class="empty-state">
+
+      <div class="empty-icon">
+        💼
+      </div>
+
+      <h3>
+        No Jobs Found
+      </h3>
+
+      <p>
+        Create a job first to use AI candidate recommendations.
+      </p>
+
+      <button
+        type="button"
+        class="primary-btn"
+        (click)="goToCreateJob()">
+
+        Post a Job →
+
+      </button>
+
+    </div>
+
+  </section>
+
+
+  <!-- ===================================================== -->
+  <!-- ERROR -->
+  <!-- ===================================================== -->
+
+  <div
+    *ngIf="error()"
+    class="error-state">
+
+    <div class="error-icon">
+      ⚠️
+    </div>
+
+    <h3>
+      Something went wrong
+    </h3>
+
+    <p>
+      {{ error() }}
+    </p>
+
+  </div>
+
+
+  <!-- ===================================================== -->
+  <!-- CANDIDATE RESULTS -->
+  <!-- ===================================================== -->
+
+  <section
+    *ngIf="selectedJobId() && !error()"
+    class="candidates-section">
+
+
+    <!-- Section Header -->
+
+    <div class="section-heading">
+
+      <div>
+
+        <h2>
+          Top Candidates
+        </h2>
+
+        <p>
+          Best matches for
+          <strong>{{ selectedJobTitle() }}</strong>
+        </p>
+
+      </div>
+
+      <span
+        *ngIf="!loadingCandidates()"
+        class="recommendation-count">
+
+        {{ totalCount() }} Candidates
+
+      </span>
+
+    </div>
+
+
+    <!-- Loading -->
+
+    <div
+      *ngIf="loadingCandidates()"
+      class="loading-state">
+
+      <div class="loading-spinner"></div>
+
+      <h3>
+        Finding the best candidates...
+      </h3>
+
+      <p>
+        AI is comparing candidate profiles with your job requirements.
+      </p>
+
+    </div>
+
+
+    <!-- Empty -->
+
+    <div
+      *ngIf="
+        !loadingCandidates() &&
+        candidates().length === 0 &&
+        !error()
+      "
+      class="empty-state">
+
+      <div class="empty-icon">
+        🔎
+      </div>
+
+      <h3>
+        No Strong Matches Found
+      </h3>
+
+      <p>
+        There are currently no candidates matching this job strongly enough.
+      </p>
+
+    </div>
+
+
+    <!-- Candidate Grid -->
+
+    <div
+      *ngIf="
+        !loadingCandidates() &&
+        candidates().length > 0
+      "
+      class="candidate-grid">
+
+
+      <!-- Candidate Card -->
+
+      <article
+        *ngFor="let candidate of candidates()"
+        class="candidate-card">
+
+
+        <!-- Card Header -->
+
+        <div class="candidate-header">
+
+          <div class="candidate-avatar">
+
+            {{ candidate.full_name?.charAt(0) || '?' }}
+
+          </div>
+
+
+          <div class="candidate-main">
+
+            <h3>
+              {{ candidate.full_name }}
+            </h3>
+
+            <p>
+              {{ candidate.headline || 'Candidate' }}
+            </p>
+
+          </div>
+
+
+          <div class="match-score">
+
+            <div class="score-value">
+              {{ candidate.match_score }}%
+            </div>
+
+            <div class="score-label">
+              {{ getMatchLabel(candidate.match_score) }}
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- Progress -->
+
+        <div class="match-progress">
+
+          <div class="progress-track">
+
+            <div
+              class="progress-fill"
+              [style.width.%]="candidate.match_score">
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- Candidate Info -->
+
+        <div class="candidate-info">
+
+          <span>
+            📍 {{ candidate.current_location || 'Location not provided' }}
+          </span>
+
+          <span>
+            💼 {{ formatExperience(candidate.experience_years) }}
+          </span>
+
+        </div>
+
+
+        <!-- Matching Skills -->
+
+        <div
+          class="skills-section"
+          *ngIf="candidate.matched_skills?.length">
+
+          <h4>
+            ✓ Matching Skills
+          </h4>
+
+          <div class="skill-list">
+
+            <span
+              *ngFor="let skill of candidate.matched_skills"
+              class="skill matched">
+
+              {{ skill }}
+
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <!-- Missing Skills -->
+
+        <div
+          class="skills-section"
+          *ngIf="candidate.missing_skills?.length">
+
+          <h4>
+            + Skills Gap
+          </h4>
+
+          <div class="skill-list">
+
+            <span
+              *ngFor="let skill of candidate.missing_skills"
+              class="skill missing">
+
+              {{ skill }}
+
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <!-- Candidate Email -->
+
+        <div class="candidate-email">
+
+          ✉️ {{ candidate.email }}
+
+        </div>
+
+
+        <!-- Actions -->
+
+        <div class="candidate-actions">
+
+          <button
+            type="button"
+            class="view-candidate-btn"
+            (click)="viewCandidate(candidate)">
+
+            View Candidate
+
+          </button>
+
+        </div>
+
+      </article>
+
+    </div>
+
+  </section>
+
+</div>

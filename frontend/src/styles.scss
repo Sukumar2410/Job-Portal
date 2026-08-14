@@ -1,0 +1,101 @@
+/* Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Inter font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+/* Reset & Base Styles */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Modern custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #cbd5e1, #94a3b8);
+  border-radius: 10px;
+  border: 2px solid #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #94a3b8, #64748b);
+}
+
+/* Selection color */
+::selection {
+  background-color: #6366f1;
+  color: white;
+}
+
+/* ============================
+   AI Career Center Markdown
+============================ */
+
+markdown {
+  display: block;
+  line-height: 1.8;
+  color: #1f2937;
+}
+
+markdown h1,
+markdown h2,
+markdown h3,
+markdown h4 {
+  margin-top: 18px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+markdown p {
+  margin-bottom: 12px;
+}
+
+markdown ul,
+markdown ol {
+  margin-left: 22px;
+  margin-bottom: 16px;
+}
+
+markdown li {
+  margin-bottom: 8px;
+}
+
+markdown strong {
+  font-weight: 700;
+}
+
+markdown code {
+  background: #eef2ff;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-family: Consolas, monospace;
+}
+
+markdown pre {
+  background: #0f172a;
+  color: white;
+  padding: 16px;
+  border-radius: 12px;
+  overflow-x: auto;
+}

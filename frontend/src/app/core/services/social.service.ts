@@ -51,9 +51,37 @@ export class SocialService {
     payload: CreatePostPayload
   ): Observable<SocialPost> {
 
-    return this.api.post<SocialPost>(
+    const formData = new FormData();
+
+    formData.append(
+      'content',
+      payload.content
+    );
+
+    if (payload.visibility) {
+      formData.append(
+        'visibility',
+        payload.visibility
+      );
+    }
+
+    if (payload.image) {
+      formData.append(
+        'image',
+        payload.image
+      );
+    }
+
+    if (payload.video) {
+      formData.append(
+        'video',
+        payload.video
+      );
+    }
+
+    return this.api.postFormData<SocialPost>(
       API.SOCIAL.POSTS,
-      payload
+      formData
     );
   }
 
@@ -64,6 +92,7 @@ export class SocialService {
       API.SOCIAL.POST_DETAIL(id)
     );
   }
+
 
   updatePost(
     id: number,
@@ -78,7 +107,8 @@ export class SocialService {
       payload
     );
   }
-  
+
+
   // ==========================================================
   // LIKES
   // ==========================================================

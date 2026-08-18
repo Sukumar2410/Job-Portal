@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, interval, startWith, switchMap } from 'rxjs';
 
 import { ApiService } from './api.service';
 import { API } from '../constants/api.constants';
@@ -98,6 +98,16 @@ export class MessagingService {
     );
   }
 
+  pollMassages(
+    conversationId: number
+  ): Observable<Message[]> {
+    return interval(3000).pipe(
+      startWith(0),
+      switchMap(() =>
+       this.getMessages(conversationId)
+      )
+    );
+  }
 
   /**
    * Send a new message.

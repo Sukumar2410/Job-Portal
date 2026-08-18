@@ -166,7 +166,7 @@ import { SubscriptionPlan, Subscription } from '../core/models/payment.model';
                 </div>
               </div>
             </div>
-
+  
             <!-- Right: Top Jobs + Quick Actions -->
             <div class="lg:col-span-2 space-y-6">
               <div class="bg-white rounded-2xl shadow-soft p-6 animate-slide-up" style="animation-delay: 0.4s;">

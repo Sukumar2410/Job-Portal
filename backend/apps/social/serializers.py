@@ -175,7 +175,7 @@ class PostListSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(url)
 
         return url
-    
+        
 class PostDetailSerializer(PostListSerializer):
     """
     Detailed post serializer including comments.

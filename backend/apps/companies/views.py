@@ -7,7 +7,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from apps.users.permissions import IsHR, IsSuperAdmin, IsHROrSuperAdmin
 from apps.users.models import UserRole, HRProfile
 from .models import Company
-from .serializers import CompanyListSerializer, CompanyDetailSerializer
+from .serializers import CompanyListSerializer, CompanyDetailSerializer, CompanyAdminDetailSerializer
 
 
 class CompanyViewSet(viewsets.ModelViewSet):
@@ -40,7 +40,7 @@ class CompanyViewSet(viewsets.ModelViewSet):
             return [IsHROrSuperAdmin()]
         elif self.action == 'destroy':
             return [IsSuperAdmin()]
-        elif self.action in ['verify', 'unverify', 'all_companies']:
+        elif self.action in ['verify', 'unverify', 'all_companies', 'admin_details']:
             return [IsSuperAdmin()]
         elif self.action == 'my_company':
             return [IsHR()]
@@ -98,4 +98,26 @@ class CompanyViewSet(viewsets.ModelViewSet):
         """GET /api/companies/all/ - Super Admin sees all (including inactive)"""
         companies = Company.objects.all()
         serializer = CompanyListSerializer(companies, many=True)
+        return Response(serializer.data)
+
+    @action(
+        detail=True,
+        methods=['get'],
+        url_path='admin-details'
+    )
+    def admin_details(self, request, slug=None):
+        """
+        GET /api/companies/{slug}/admin-details/
+
+        Returns complete company information and
+        hiring/platform statistics for Super Admin.
+        """
+
+        company = self.get_object()
+
+        serializer = CompanyAdminDetailSerializer(
+            company,
+            context={'request': request}
+        )
+
         return Response(serializer.data)

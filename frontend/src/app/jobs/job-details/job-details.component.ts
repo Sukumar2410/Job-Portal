@@ -50,11 +50,11 @@ import { MatchScoreResponse } from '../../core/models/application.model';
               <!-- Hero Card -->
               <div class="bg-white rounded-2xl shadow-soft overflow-hidden">
                 <div class="h-32 bg-gradient-to-br from-primary-600 via-indigo-700 to-purple-700 relative">
-                  <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                  <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-8 -mt-8"></div>
                 </div>
                 <div class="px-6 pb-6">
                   <div class="flex items-start gap-4 -mt-12">
-                    <div class="w-24 h-24 bg-gradient-to-br from-primary-500 to-purple-600 rounded-2xl shadow-lg flex items-center justify-center text-3xl font-bold text-white flex-shrink-0 border-4 border-white">
+                    <div class="relative z-10 w-24 h-24 bg-gradient-to-br from-primary-500 to-purple-600 rounded-2xl shadow-lg flex items-center justify-center text-3xl font-bold text-white flex-shrink-0 border-4 border-white">
                         {{ getFirstChar(j.company?.name) }}
                     </div>
                     <div class="flex-1 min-w-0 pt-12">
@@ -443,11 +443,50 @@ export class JobDetailsComponent implements OnInit {
   }
 
   formatSalary(min: number | null, max: number | null, currency: string): string {
-    const format = (n: number) => n >= 100000 ? (n / 100000).toFixed(1) + 'L' : (n / 1000).toFixed(0) + 'K';
+    const format = (n: number): string => {
+      if (n >= 100000) {
+        return (n / 100000).toFixed(1) + 'L';
+      }
+
+      if (n >= 1000) {
+        return (n / 1000).toFixed(0) + 'K';
+      }
+
+      return n.toString();
+    };
+
     const cur = currency === 'INR' ? '₹' : currency + ' ';
-    if (min && max) return `${cur}${format(min)} - ${cur}${format(max)}`;
-    if (min) return `From ${cur}${format(min)}`;
-    if (max) return `Up to ${cur}${format(max)}`;
+
+    // Only accept positive integers
+    const validMin =
+      min !== null &&
+      Number.isInteger(Number(min)) &&
+      Number(min) > 0
+        ? Number(min)
+        : null;
+
+    const validMax =
+      max !== null &&
+      Number.isInteger(Number(max)) &&
+      Number(max) > 0
+        ? Number(max)
+        : null;
+
+    // Valid salary range
+    if (validMin !== null && validMax !== null && validMax > validMin) {
+      return `${cur}${format(validMin)} - ${cur}${format(validMax)}`;
+    }
+
+    // Only valid minimum salary
+    if (validMin !== null) {
+      return `From ${cur}${format(validMin)}`;
+    }
+
+    // Only valid maximum salary
+    if (validMax !== null) {
+      return `Up to ${cur}${format(validMax)}`;
+    }
+
     return '';
   }
 

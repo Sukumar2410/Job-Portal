@@ -13,6 +13,8 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 GROQ_API_KEY = config("GROQ_API_KEY")
 
 # ==================== APPLICATIONS ====================
+# ==================== APPLICATIONS ====================
+# ==================== APPLICATIONS ====================
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -23,6 +25,8 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    # 'daphne' removed from here to prevent duplicate listing
+    'channels',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
@@ -48,7 +52,7 @@ LOCAL_APPS = [
     'apps.messaging',
 ]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = ['daphne'] + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 # ==================== MIDDLEWARE ====================
 MIDDLEWARE = [
@@ -81,6 +85,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
 
 # ==================== DATABASE (SQLite) ====================
 DATABASES = {
@@ -201,3 +206,11 @@ PASSWORD_RESET_TOKEN_EXPIRY_HOURS = 1
 # ==================== RAZORPAY ====================
 RAZORPAY_KEY_ID = config('RAZORPAY_KEY_ID', default='')
 RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET', default='')
+
+# ==================== IN MEMORY CHANNEL LAYER ====================
+CHANNEL_LAYERS = {
+    "default":{
+        "BACKEND":
+    "channels.layers.InMemoryChannelLayer",
+    },
+}

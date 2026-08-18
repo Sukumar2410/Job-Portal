@@ -33,6 +33,7 @@ export const API = {
     DETAIL: (slug: string) => `${BASE_URL}/companies/${slug}/`,
     VERIFY: (slug: string) => `${BASE_URL}/companies/${slug}/verify/`,
     UNVERIFY: (slug: string) => `${BASE_URL}/companies/${slug}/unverify/`,
+    ADMIN_DETAILS: (slug: string) => `/api/companies/${slug}/admin-details/`,
     ALL: `${BASE_URL}/companies/all/`,
   },
 

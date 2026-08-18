@@ -6,6 +6,7 @@ export interface SocialPost {
   author_email: string;
 
   content: string;
+
   image_url: string | null;
   video_url: string | null;
 
@@ -31,7 +32,10 @@ export interface SocialPostsResponse {
 
 export interface CreatePostPayload {
   content: string;
-  image_url?: string | null;
+  
+  image?: File | null;
+  video?: File | null;
+
   visibility?: string;
 }
 

@@ -22,3 +22,46 @@ export interface Company {
   created_at: string;
   updated_at: string;
 }
+
+export interface CompanyRecentJob {
+  id: number;
+  title: string;
+  slug: string;
+  location: string;
+  job_type: string;
+  work_mode: string;
+  experience_level: string;
+  status: string;
+  status_display: string;
+  views_count: number;
+  applications_count: number;
+  posted_at: string | null;
+  created_at: string;
+}
+
+
+export interface CompanyAdminDetails extends Company {
+
+  created_by: number | null;
+  created_by_email: string | null;
+
+  total_job_count: number;
+  active_job_count: number;
+  closed_job_count: number;
+
+  total_application_count: number;
+  unique_candidate_count: number;
+
+  applied_count: number;
+  under_review_count: number;
+  shortlisted_count: number;
+  interview_count: number;
+  offered_count: number;
+  hired_count: number;
+  rejected_count: number;
+
+  jobs_used: number;
+  jobs_remaining: number;
+
+  recent_jobs: CompanyRecentJob[];
+}

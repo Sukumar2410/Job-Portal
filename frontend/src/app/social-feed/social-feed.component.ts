@@ -1,6 +1,7 @@
 import {
   Component,
   OnInit,
+  OnDestroy,
   inject,
   signal
 } from '@angular/core';
@@ -71,7 +72,7 @@ import {
 
 
       <!-- ==========================================
-           CREATE POST
+          CREATE POST
       =========================================== -->
 
       <section class="create-post-card">
@@ -100,10 +101,150 @@ import {
         <textarea
           [(ngModel)]="newPostContent"
           rows="4"
+          maxlength="5000"
           placeholder="What's on your mind?"
           class="post-input"
         ></textarea>
 
+
+
+        <!-- ==========================================
+            MEDIA PREVIEW
+        =========================================== -->
+
+        <div
+          *ngIf="imagePreviewUrl() || videoPreviewUrl()"
+          class="media-preview-section"
+        >
+
+
+          <!-- IMAGE -->
+
+          <div
+            *ngIf="imagePreviewUrl()"
+            class="media-preview image-preview"
+          >
+
+            <img
+              [src]="imagePreviewUrl()!"
+              alt="Selected image"
+            />
+
+            <button
+              type="button"
+              class="remove-media-button"
+              (click)="clearSelectedImage(imageInput)"
+              aria-label="Remove image"
+            >
+              ×
+            </button>
+
+          </div>
+
+
+
+          <!-- VIDEO -->
+
+          <div
+            *ngIf="videoPreviewUrl()"
+            class="media-preview video-preview"
+          >
+
+            <video
+              [src]="videoPreviewUrl()!"
+              controls
+              preload="metadata"
+            >
+              Your browser does not support video playback.
+            </video>
+
+            <button
+              type="button"
+              class="remove-media-button"
+              (click)="clearSelectedVideo(videoInput)"
+              aria-label="Remove video"
+            >
+              ×
+            </button>
+
+          </div>
+
+        </div>
+
+
+
+        <!-- ==========================================
+            MEDIA ACTIONS
+        =========================================== -->
+
+        <div class="media-actions">
+
+          <label
+            for="post-image-input"
+            class="media-button"
+          >
+            📷
+            <span>
+              Photo
+            </span>
+          </label>
+
+
+          <input
+            #imageInput
+            id="post-image-input"
+            type="file"
+            accept="image/*"
+            hidden
+            (change)="onImageSelected($event)"
+          />
+
+
+
+          <label
+            for="post-video-input"
+            class="media-button"
+          >
+            🎥
+            <span>
+              Video
+            </span>
+          </label>
+
+
+          <input
+            #videoInput
+            id="post-video-input"
+            type="file"
+            accept="video/*"
+            hidden
+            (change)="onVideoSelected($event)"
+          />
+
+
+
+          <span
+            *ngIf="selectedImage()"
+            class="selected-file"
+          >
+            📷 {{ selectedImage()?.name }}
+          </span>
+
+
+          <span
+            *ngIf="selectedVideo()"
+            class="selected-file"
+          >
+            🎥 {{ selectedVideo()?.name }}
+          </span>
+
+        </div>
+
+
+
+        <!-- ==========================================
+            POST ACTIONS
+        =========================================== -->
 
         <div class="create-post-actions">
 
@@ -115,18 +256,24 @@ import {
           <button
             type="button"
             class="post-button"
-            (click)="createPost()"
-            [disabled]="posting() || !newPostContent.trim()"
+            (click)="createPost(imageInput, videoInput)"
+            [disabled]="
+              posting() ||
+              !newPostContent.trim()
+            "
           >
 
-            {{ posting() ? 'Publishing...' : 'Post' }}
+            {{
+              posting()
+                ? 'Publishing...'
+                : 'Post'
+            }}
 
           </button>
 
         </div>
 
       </section>
-
 
 
       <!-- ==========================================
@@ -429,7 +576,7 @@ import {
             />
 
             <video
-              *ngIf="post.video.ur;"
+              *ngIf="post.video_url;"
               [src]="post.video_url"
               class="post-video"
               controls
@@ -437,7 +584,7 @@ import {
             >
               Your browser does not support video playback.
             </video>
-            
+
           </div>
 
 
@@ -772,7 +919,7 @@ import {
 })
 
 
-export class SocialFeedComponent implements OnInit {
+export class SocialFeedComponent implements OnInit, OnDestroy {
 
 
   // ==========================================================
@@ -805,7 +952,13 @@ export class SocialFeedComponent implements OnInit {
 
   newPostContent = '';
 
+  selectedImage = signal<File | null>(null);
 
+  selectedVideo = signal<File | null>(null);
+
+  imagePreviewUrl = signal<string | null>(null);
+
+  videoPreviewUrl = signal<string | null>(null);
 
   // ==========================================================
   // EDIT POST STATE
@@ -922,7 +1075,10 @@ export class SocialFeedComponent implements OnInit {
   // CREATE POST
   // ==========================================================
 
-  createPost(): void {
+  createPost(
+    imageInput?: HTMLInputElement,
+    videoInput?: HTMLInputElement
+  ): void {
 
     const content =
       this.newPostContent.trim();
@@ -942,7 +1098,11 @@ export class SocialFeedComponent implements OnInit {
 
       content: content,
 
-      visibility: 'PUBLIC'
+      visibility: 'PUBLIC',
+
+      image: this.selectedImage(),
+
+      video: this.selectedVideo()
 
     }).subscribe({
 
@@ -958,8 +1118,12 @@ export class SocialFeedComponent implements OnInit {
 
         this.newPostContent = '';
 
-      },
+        // Clear selected media
+        this.clearSelectedImage(imageInput);
 
+        this.clearSelectedVideo(videoInput);
+
+      },
 
       error: (error) => {
 
@@ -981,6 +1145,183 @@ export class SocialFeedComponent implements OnInit {
 
   }
 
+  // ==========================================================
+  // SELECT IMAGE
+  // ==========================================================
+
+  onImageSelected(event: Event): void {
+
+    const input =
+      event.target as HTMLInputElement;
+
+
+    if (!input.files || input.files.length === 0) {
+
+      return;
+
+    }
+
+
+    const file = input.files[0];
+
+
+    this.selectedImage.set(file);
+
+
+    // Remove previous preview URL
+    const previousUrl =
+      this.imagePreviewUrl();
+
+    if (previousUrl) {
+
+      URL.revokeObjectURL(previousUrl);
+
+    }
+
+
+    // Create temporary browser preview URL
+    const previewUrl =
+      URL.createObjectURL(file);
+
+
+    this.imagePreviewUrl.set(previewUrl);
+
+  }
+
+  // ==========================================================
+  // SELECT VIDEO
+  // ==========================================================
+
+  onVideoSelected(event: Event): void {
+
+    const input =
+      event.target as HTMLInputElement;
+
+
+    if (!input.files || input.files.length === 0) {
+
+      return;
+
+    }
+
+
+    const file = input.files[0];
+
+
+    this.selectedVideo.set(file);
+
+
+    // Remove previous preview URL
+    const previousUrl =
+      this.videoPreviewUrl();
+
+    if (previousUrl) {
+
+      URL.revokeObjectURL(previousUrl);
+
+    }
+
+
+    // Create temporary browser preview URL
+    const previewUrl =
+      URL.createObjectURL(file);
+
+
+    this.videoPreviewUrl.set(previewUrl);
+
+  }
+
+  // ==========================================================
+  // REMOVE SELECTED IMAGE
+  // ==========================================================
+
+  clearSelectedImage(
+    input?: HTMLInputElement
+  ): void {
+
+    const previewUrl =
+      this.imagePreviewUrl();
+
+
+    if (previewUrl) {
+
+      URL.revokeObjectURL(previewUrl);
+
+    }
+
+
+    this.selectedImage.set(null);
+
+    this.imagePreviewUrl.set(null);
+
+
+    if (input) {
+
+      input.value = '';
+
+    }
+
+  }
+
+  // ==========================================================
+  // REMOVE SELECTED VIDEO
+  // ==========================================================
+
+  clearSelectedVideo(
+    input?: HTMLInputElement
+  ): void {
+
+    const previewUrl =
+      this.videoPreviewUrl();
+
+
+    if (previewUrl) {
+
+      URL.revokeObjectURL(previewUrl);
+
+    }
+
+
+    this.selectedVideo.set(null);
+
+    this.videoPreviewUrl.set(null);
+
+
+    if (input) {
+
+      input.value = '';
+
+    }
+
+  }
+
+  // ==========================================================
+  // COMPONENT CLEANUP
+  // ==========================================================
+
+  ngOnDestroy(): void {
+
+    const imageUrl =
+      this.imagePreviewUrl();
+
+    const videoUrl =
+      this.videoPreviewUrl();
+
+
+    if (imageUrl) {
+
+      URL.revokeObjectURL(imageUrl);
+
+    }
+
+
+    if (videoUrl) {
+
+      URL.revokeObjectURL(videoUrl);
+
+    }
+
+  }
 
 
   // ==========================================================

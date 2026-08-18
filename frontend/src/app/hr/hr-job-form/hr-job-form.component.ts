@@ -133,40 +133,121 @@ import { JobsService } from '../../core/services/jobs.service';
             <h2 class="text-lg font-bold text-gray-900 mb-4">📍 Location & Compensation</h2>
 
             <div class="space-y-4">
+
+              <!-- Location -->
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Location *</label>
-                <input type="text" [(ngModel)]="form.location" name="location" required
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Location *
+                </label>
+
+                <input
+                  type="text"
+                  [(ngModel)]="form.location"
+                  name="location"
+                  required
                   placeholder="Bangalore, India"
-                  class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all" />
+                  class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
+                />
               </div>
 
+              <!-- Salary Fields -->
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                <!-- Min Salary -->
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Min Salary</label>
-                  <input type="number" [(ngModel)]="form.min_salary" name="min_salary" placeholder="500000"
-                    class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all" />
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Min Salary
+                  </label>
+
+                  <input
+                    type="number"
+                    [(ngModel)]="form.min_salary"
+                    name="min_salary"
+                    min="1"
+                    step="1"
+                    inputmode="numeric"
+                    placeholder="500000"
+                    (keydown)="preventInvalidSalaryInput($event)"
+                    (input)="sanitizeSalaryInput('min_salary', $event)"
+                    (ngModelChange)="validateSalaryRange()"
+                    class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
+                  />
+
+                  <!-- Min Salary Error -->
+                  <p
+                    *ngIf="isInvalidSalary(form.min_salary)"
+                    class="mt-1 text-sm text-red-600"
+                  >
+                    Minimum salary must be a positive integer.
+                  </p>
+
+
+                <!-- Max Salary -->
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Max Salary
+                  </label>
+
+                  <input
+                    type="number"
+                    [(ngModel)]="form.max_salary"
+                    name="max_salary"
+                    min="1"
+                    step="1"
+                    inputmode="numeric"
+                    placeholder="1000000"
+                    (keydown)="preventInvalidSalaryInput($event)"
+                    (input)="sanitizeSalaryInput('max_salary', $event)"
+                    (ngModelChange)="validateSalaryRange()"
+                    [class.border-red-500]="salaryRangeError"
+                    [class.focus:border-red-500]="salaryRangeError"
+                    class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
+                  />
+
+                  <!-- Max Salary Error -->
+                  <p
+                    *ngIf="isInvalidSalary(form.max_salary)"
+                    class="mt-1 text-sm text-red-600"
+                  >
+                    Maximum salary must be a positive integer.
+                  </p>
                 </div>
+
+
+                <!-- Currency -->
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Max Salary</label>
-                  <input type="number" [(ngModel)]="form.max_salary" name="max_salary" placeholder="1000000"
-                    class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all" />
-                </div>
-                <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Currency</label>
-                  <select [(ngModel)]="form.currency" name="currency"
-                    class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all">
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Currency
+                  </label>
+
+                  <select
+                    [(ngModel)]="form.currency"
+                    name="currency"
+                    class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"
+                  >
                     <option value="INR">INR</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                     <option value="GBP">GBP</option>
                   </select>
                 </div>
+
               </div>
 
+              <!-- Show Salary -->
               <label class="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" [(ngModel)]="form.show_salary" name="show_salary" class="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
-                <span class="text-sm text-gray-700">Show salary range to candidates</span>
+                <input
+                  type="checkbox"
+                  [(ngModel)]="form.show_salary"
+                  name="show_salary"
+                  class="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                />
+
+                <span class="text-sm text-gray-700">
+                  Show salary range to candidates
+                </span>
               </label>
+
             </div>
           </div>
 
@@ -235,6 +316,7 @@ import { JobsService } from '../../core/services/jobs.service';
               class="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all disabled:opacity-50">
               {{ saving() ? 'Saving...' : (isEditMode() ? 'Update Job' : 'Post Job') }}
             </button>
+          </div>
           </div>
         </form>
       </div>
@@ -359,4 +441,65 @@ export class HrJobFormComponent implements OnInit {
     }
     return 'Failed to save job.';
   }
+
+  salaryRangeError = false;
+
+  preventInvalidSalaryInput(event: KeyboardEvent): void {
+    const invalidKeys = ['-', '+', 'e', 'E', '.'];
+
+    if (invalidKeys.includes(event.key)) {
+      event.preventDefault();
+    }
+  }
+
+  sanitizeSalaryInput(
+    field: 'min_salary' | 'max_salary',
+    event: Event
+  ): void {
+    const input = event.target as HTMLInputElement;
+
+    let value = input.value;
+
+    const match = value.match(/^\d+/);
+
+    value = match ? match[0] : '';
+
+    this.form[field] = value === '' ? null : Number(value);
+
+    input.value = value;
+
+    this.validateSalaryRange();
+  }
+
+  validateSalaryRange(): void {
+    const minSalary = this.form.min_salary;
+    const maxSalary = this.form.max_salary;
+
+    if (
+      minSalary === null ||
+      minSalary === undefined ||
+      minSalary === '' ||
+      maxSalary === null ||
+      maxSalary === undefined ||
+      maxSalary === ''
+    ) {
+      this.salaryRangeError = false;
+      return;
+    }
+
+    const min = Number(minSalary);
+    const max = Number(maxSalary);
+
+    this.salaryRangeError = max <= min;
+  }
+
+  isInvalidSalary(value: number | null | undefined): boolean {
+    if (value === null || value === undefined) {
+      return false;
+    }
+
+    return !Number.isInteger(Number(value)) || Number(value) <= 0;
+  }
+
 }
+

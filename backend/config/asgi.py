@@ -1,16 +1,52 @@
 """
 ASGI config for config project.
 
-It exposes the ASGI callable as a module-level variable named ``application``.
+Supports both:
 
-For more information on this file, see
-https://docs.djangoproject.com/en/5.0/howto/deployment/asgi/
+1. Normal HTTP requests
+2. WebSocket connections
 """
 
 import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+from channels.routing import (
+    ProtocolTypeRouter,
+    URLRouter,
+)
 
-application = get_asgi_application()
+from apps.messaging.middleware import JWTAuthMiddleware
+from apps.messaging.routing import websocket_urlpatterns
+
+
+os.environ.setdefault(
+    'DJANGO_SETTINGS_MODULE',
+    'config.settings'
+)
+
+
+# ----------------------------------------------------------
+# DJANGO HTTP APPLICATION
+# ----------------------------------------------------------
+
+django_asgi_app = get_asgi_application()
+
+
+# ----------------------------------------------------------
+# ASGI APPLICATION
+# ----------------------------------------------------------
+
+application = ProtocolTypeRouter({
+
+    # Normal HTTP / REST API requests
+    "http": django_asgi_app,
+
+    # WebSocket requests
+    "websocket": JWTAuthMiddleware(
+        URLRouter(
+            websocket_urlpatterns
+        )
+    ),
+
+})

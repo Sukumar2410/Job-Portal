@@ -5,7 +5,7 @@ import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 
 import { TopNavComponent } from '../../shared/top-nav/top-nav.component';
 import { CompaniesService, CompanyFilters } from '../../core/services/companies.service';
-import { Company } from '../../core/models/company.model';
+import { Company, CompanyAdminDetails } from '../../core/models/company.model';
 
 @Component({
   selector: 'app-admin-companies',
@@ -267,6 +267,7 @@ export class AdminCompaniesComponent implements OnInit {
   verifiedFilter = signal('');
 
   selectedCompany = signal<Company | null>(null);
+  selectedCompanyDetails = signal<CompanyAdminDetails | null>(null);
   acting = signal(false);
   actionSuccess = signal<string | null>(null);
   actionError = signal<string | null>(null);
@@ -329,15 +330,54 @@ export class AdminCompaniesComponent implements OnInit {
   }
 
   openCompany(comp: Company): void {
+
     this.actionSuccess.set(null);
     this.actionError.set(null);
+
+    // Show basic information immediately
     this.selectedCompany.set(comp);
+
+    // Clear previous detailed information
+    this.selectedCompanyDetails.set(null);
+
+    // Load complete admin information
+    this.companiesService
+      .getCompanyAdminDetails(comp.slug)
+      .subscribe({
+
+        next: (details) => {
+
+          this.selectedCompanyDetails.set(
+            details
+          );
+
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Failed to load company details:',
+            error
+          );
+
+          this.actionError.set(
+            'Unable to load complete company details.'
+          );
+
+        }
+
+      });
   }
 
   closeCompany(): void {
-    this.selectedCompany.set(null);
-  }
 
+    this.selectedCompany.set(null);
+
+    this.selectedCompanyDetails.set(null);
+
+    this.actionSuccess.set(null);
+    this.actionError.set(null);
+  }
   verifyCompany(comp: Company): void {
     this.acting.set(true);
     this.companiesService.verifyCompany(comp.slug).subscribe({

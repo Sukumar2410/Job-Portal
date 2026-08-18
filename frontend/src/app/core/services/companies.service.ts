@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
 import { API } from '../constants/api.constants';
-import { Company } from '../models/company.model';
+import { Company, CompanyAdminDetails } from '../models/company.model';
 import { PaginatedResponse } from '../models/common.model';
 
 export interface CompanyFilters {
@@ -33,6 +33,14 @@ export class CompaniesService {
 
   getCompany(slug: string): Observable<Company> {
     return this.api.get<Company>(API.COMPANIES.DETAIL(slug));
+  }
+
+  getCompanyAdminDetails(
+    slug: string
+  ): Observable<CompanyAdminDetails> {
+    return this.api.get<CompanyAdminDetails>(
+      API.COMPANIES.ADMIN_DETAILS(slug)
+    );
   }
 
   // Admin endpoints

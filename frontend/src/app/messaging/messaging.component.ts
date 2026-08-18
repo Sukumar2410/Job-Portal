@@ -124,6 +124,8 @@ export class MessagingComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
 
+    this.loadCurrentUser();
+
     this.loadConversations();
 
     this.startConversationPolling();

@@ -148,7 +148,9 @@ import { Router, RouterLink } from '@angular/router';
 
             <!-- Forgot Password Link -->
             <div class="flex justify-end">
-              <a href="#" class="text-sm text-primary-600 hover:text-primary-700 font-semibold transition-colors">
+              <a
+                routerLink="/forgot-password"
+                class="text-sm text-primary-600 hover:text-primary-700 font-semibold transition-colors">
                 Forgot password?
               </a>
             </div>

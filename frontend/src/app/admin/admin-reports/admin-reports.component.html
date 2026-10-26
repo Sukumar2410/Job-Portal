@@ -1,0 +1,206 @@
+<div class="min-h-screen bg-slate-50">
+
+  <app-top-nav portalName="Admin Portal"></app-top-nav>
+
+  <div class="max-w-7xl mx-auto p-6">
+
+    <div class="mb-8">
+
+      <h1 class="text-3xl font-bold">🚩 Reports Management</h1>
+
+      <p class="text-gray-500 mt-2">
+        Review issues submitted by Candidates and HR.
+      </p>
+
+    </div>
+
+    <!-- Filters -->
+
+    <div class="bg-white rounded-2xl p-4 shadow mb-6">
+
+      <div class="grid md:grid-cols-3 gap-3">
+
+        <input
+          class="border rounded-lg px-3 py-2"
+          placeholder="Search subject/email"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)">
+
+        <select
+          class="border rounded-lg px-3 py-2"
+          [ngModel]="statusFilter()"
+          (ngModelChange)="statusFilter.set($event)">
+
+          <option value="ALL">All Status</option>
+          <option value="OPEN">Open</option>
+          <option value="IN_PROGRESS">In Progress</option>
+          <option value="RESOLVED">Resolved</option>
+
+        </select>
+
+        <select
+          class="border rounded-lg px-3 py-2"
+          [ngModel]="priorityFilter()"
+          (ngModelChange)="priorityFilter.set($event)">
+
+          <option value="ALL">All Priority</option>
+          <option value="HIGH">High</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="LOW">Low</option>
+
+        </select>
+
+      </div>
+
+    </div>
+
+    <!-- Table -->
+
+    <div class="bg-white rounded-2xl shadow overflow-hidden">
+
+      <table class="w-full">
+
+        <thead class="bg-gray-100">
+
+          <tr>
+
+            <th class="p-4">ID</th>
+
+            <th class="p-4 text-left">Reporter</th>
+
+            <th class="p-4 text-left">Subject</th>
+
+            <th class="p-4">Priority</th>
+
+            <th class="p-4">Status</th>
+
+            <th class="p-4">Action</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          <tr
+            *ngFor="let r of filteredReports()"
+            class="border-t">
+
+            <td class="p-4 font-bold">#{{r.id}}</td>
+
+            <td class="p-4">
+
+              <div>{{r.reporter_name}}</div>
+
+              <div class="text-xs text-gray-500">{{r.reporter_email}}</div>
+
+              <span class="text-xs px-2 py-1 bg-gray-100 rounded-full">
+                {{r.reporter_role}}
+              </span>
+
+            </td>
+
+            <td class="p-4">
+
+              <div class="font-semibold">{{r.subject}}</div>
+
+              <div class="text-xs text-gray-500 line-clamp-2">
+                {{r.description}}
+              </div>
+
+            </td>
+
+            <td class="p-4">
+
+              <span class="badge priority-{{r.priority.toLowerCase()}}">
+                {{r.priority}}
+              </span>
+
+            </td>
+
+            <td class="p-4">
+
+              <span class="badge status-{{r.status.toLowerCase().replace('_','-')}}">
+                {{r.status}}
+              </span>
+
+            </td>
+
+            <td class="p-4">
+
+              <button
+                (click)="open(r)"
+                class="px-3 py-1 bg-blue-600 text-white rounded-lg">
+
+                View
+
+              </button>
+
+            </td>
+
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+  <!-- Modal -->
+
+  <div
+    *ngIf="selectedReport()"
+    class="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl w-full max-w-xl">
+
+      <div class="p-6 border-b">
+
+        <h2 class="text-xl font-bold">
+          {{selectedReport()?.subject}}
+        </h2>
+
+      </div>
+
+      <div class="p-6 space-y-4">
+
+        <p>{{selectedReport()?.description}}</p>
+
+        <textarea
+          [(ngModel)]="remarks"
+          rows="4"
+          class="w-full border rounded-lg p-3"
+          placeholder="Admin remarks...">
+        </textarea>
+
+      </div>
+
+      <div class="flex justify-end gap-3 p-6 border-t">
+
+        <button
+          (click)="close()"
+          class="px-4 py-2 border rounded-lg">
+          Close
+        </button>
+
+        <button
+          (click)="resolve('IN_PROGRESS')"
+          class="px-4 py-2 bg-orange-500 text-white rounded-lg">
+          Mark In Progress
+        </button>
+
+        <button
+          (click)="resolve('RESOLVED')"
+          class="px-4 py-2 bg-green-600 text-white rounded-lg">
+          Resolve
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>

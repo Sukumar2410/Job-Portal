@@ -102,8 +102,24 @@ import { ApiService } from '../../core/services/api.service';
 
             <div class="flex flex-col sm:flex-row sm:items-start gap-4">
               <!-- Avatar -->
-              <div class="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-lg font-bold flex-shrink-0 shadow-md">
-                {{ getInitials(app.candidate_name || '') }}
+              <div class="w-12 h-12 rounded-full overflow-hidden bg-emerald-100 flex items-center justify-center border border-emerald-200">
+
+                <!-- Candidate Profile Image -->
+                <img
+                  *ngIf="app.candidate_profile?.profile_picture"
+                  [src]="app.candidate_profile.profile_picture"
+                  [alt]="app.candidate_name"
+                  class="w-full h-full object-cover pointer-events-none"
+                />
+
+                <!-- Fallback Initial -->
+                <span
+                  *ngIf="!app.candidate_profile?.profile_picture"
+                  class="text-lg font-bold text-emerald-700"
+                >
+                  {{ (app.candidate_name || '?').charAt(0) }}
+                </span>
+  
               </div>
 
               <!-- Content -->
@@ -143,8 +159,24 @@ import { ApiService } from '../../core/services/api.service';
           <!-- Header -->
           <div class="sticky top-0 bg-white border-b border-gray-100 p-6 flex items-start justify-between z-10">
             <div class="flex items-center gap-4">
-              <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-md">
-                {{ getInitials(app.candidate_name || '') }}
+              <div class="w-16 h-16 rounded-full overflow-hidden shadow-md border-2 border-emerald-200 bg-emerald-100 flex items-center justify-center">
+
+                <!-- Profile Picture -->
+                <img
+                  *ngIf="app.candidate_profile?.profile_picture"
+                  [src]="app.candidate_profile.profile_picture"
+                  [alt]="app.candidate_name || 'Candidate'"
+                  class="w-full h-full object-cover"
+                />
+
+                <!-- Fallback Initials -->
+                <span
+                  *ngIf="!app.candidate_profile?.profile_picture"
+                  class="text-white text-xl font-bold"
+                >
+                  {{ getInitials(app.candidate_name || '') }}
+                </span>
+
               </div>
               <div>
                 <h2 class="text-2xl font-bold text-gray-900">{{ app.candidate_name || 'Candidate' }}</h2>
@@ -162,35 +194,141 @@ import { ApiService } from '../../core/services/api.service';
           <div class="p-6 space-y-6">
 
             <!-- Status Bar -->
-            <div class="flex items-center justify-between gap-4 flex-wrap p-4 bg-gray-50 rounded-xl">
-              <div>
-                <div class="text-xs text-gray-500 mb-1">Current Status</div>
-                <span class="inline-flex items-center px-3 py-1 text-sm font-bold rounded-full"
-                  [style.background]="getStatusBg(app.status)"
-                  [style.color]="getStatusColor(app.status)">
-                  {{ formatStatus(app.status) }}
-                </span>
-              </div>
-              <div class="flex-1 min-w-[200px]">
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Update Status</label>
-                <div class="flex gap-2">
-                  <select [(ngModel)]="newStatus"
-                    class="flex-1 px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm focus:border-emerald-500 outline-none">
-                    <option value="APPLIED">Applied</option>
-                    <option value="UNDER_REVIEW">Under Review</option>
-                    <option value="SHORTLISTED">Shortlisted</option>
-                    <option value="INTERVIEW_SCHEDULED">Interview Scheduled</option>
-                    <option value="INTERVIEWED">Interviewed</option>
-                    <option value="OFFERED">Offered</option>
-                    <option value="HIRED">Hired</option>
-                    <option value="REJECTED">Rejected</option>
-                  </select>
-                  <button (click)="updateStatus(app)" [disabled]="updating() || newStatus === app.status"
-                    class="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-all">
-                    {{ updating() ? 'Updating...' : 'Update' }}
-                  </button>
+            <div class="p-4 bg-gray-50 rounded-xl space-y-4">
+
+              <div class="flex items-center justify-between gap-4 flex-wrap">
+
+                <div>
+                  <div class="text-xs text-gray-500 mb-1">Current Status</div>
+
+                  <span
+                    class="inline-flex items-center px-3 py-1 text-sm font-bold rounded-full"
+                    [style.background]="getStatusBg(app.status)"
+                    [style.color]="getStatusColor(app.status)">
+
+                    {{ formatStatus(app.status) }}
+
+                  </span>
                 </div>
+
+                <div class="flex-1 min-w-[240px]">
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">
+                    Update Status
+                  </label>
+
+                  <div class="flex gap-2">
+
+                    <select
+                      [(ngModel)]="newStatus"
+                      class="flex-1 px-3 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm">
+
+                      <option value="APPLIED">Applied</option>
+                      <option value="UNDER_REVIEW">Under Review</option>
+                      <option value="SHORTLISTED">Shortlisted</option>
+                      <option value="INTERVIEW_SCHEDULED">Interview Scheduled</option>
+                      <option value="INTERVIEWED">Interviewed</option>
+                      <option value="OFFERED">Offered</option>
+                      <option value="HIRED">Hired</option>
+                      <option value="REJECTED">Rejected</option>
+
+                    </select>
+
+                  </div>
+
+                </div>
+
               </div>
+
+              <!-- Interview Form -->
+              <div
+                *ngIf="newStatus === 'INTERVIEW_SCHEDULED'"
+                class="border border-emerald-200 rounded-xl p-4 bg-emerald-50">
+
+                <h3 class="font-bold text-emerald-800 mb-4">
+                  📅 Schedule Interview
+                </h3>
+
+                <div class="grid grid-cols-2 gap-3">
+
+                  <div>
+                    <label class="text-xs font-semibold text-gray-600">
+                      Date
+                    </label>
+
+                    <input
+                      type="date"
+                      [(ngModel)]="interviewDate"
+                      [min]="today"
+                      class="w-full mt-1 border rounded-lg p-2">
+                  </div>
+
+                  <div>
+                    <label class="text-xs font-semibold text-gray-600">
+                      Time
+                    </label>
+
+                    <input
+                      type="time"
+                      [(ngModel)]="interviewTime"
+                      [min]="minTime"
+                      class="w-full mt-1 border rounded-lg p-2">
+                  </div>
+
+                  <div>
+                    <label class="text-xs font-semibold text-gray-600">
+                      Interview Type
+                    </label>
+
+                    <select
+                      [(ngModel)]="interviewType"
+                      class="w-full mt-1 border rounded-lg p-2">
+
+                      <option value="ONLINE">Online</option>
+                      <option value="OFFLINE">Offline</option>
+                      <option value="PHONE">Phone</option>
+
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="text-xs font-semibold text-gray-600">
+                      Meeting Link
+                    </label>
+
+                    <input
+                      [(ngModel)]="meetingLink"
+                      placeholder="https://meet.google.com/..."
+                      class="w-full mt-1 border rounded-lg p-2">
+                  </div>
+
+                </div>
+
+                <div class="mt-3">
+
+                  <label class="text-xs font-semibold text-gray-600">
+                    HR Notes
+                  </label>
+
+                  <textarea
+                    [(ngModel)]="interviewNotes"
+                    rows="3"
+                    placeholder="Please join 10 minutes early..."
+                    class="w-full mt-1 border rounded-lg p-2">
+                  </textarea>
+
+                </div>
+
+              </div>
+
+              <button
+                (click)="updateStatus(app)"
+                [disabled]="updating() || newStatus === app.status"
+                class="w-full bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-50">
+
+                {{ updating() ? 'Updating...' : 'Update Status' }}
+
+              </button>
+
             </div>
 
             <!-- Rating -->
@@ -312,10 +450,34 @@ export class HrApplicantsComponent implements OnInit {
 
   selectedJob = signal('');
   selectedStatus = signal('');
+
   newStatus = '';
   newNote = '';
   ratingValue = 0;
 
+  // ===== Interview Scheduling =====
+  interviewDate = '';
+  interviewTime = '';
+  interviewType = 'ONLINE';
+  meetingLink = '';
+  interviewNotes = '';
+
+  // Prevent selecting past dates
+  today = new Date().toISOString().split('T')[0];
+
+  // Minimum selectable time for today's interviews
+  get minTime(): string {
+    if (this.interviewDate !== this.today) {
+      return '00:00';
+    }
+
+    const now = new Date();
+
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+
+    return `${hours}:${minutes}`;
+  }
     filteredApplications = computed(() => {
     let list = this.applications();
     const job = this.selectedJob();
@@ -386,20 +548,54 @@ export class HrApplicantsComponent implements OnInit {
   }
 
   updateStatus(app: Application): void {
+
     if (this.newStatus === app.status) return;
+
     this.updating.set(true);
-    const payload = { status: this.newStatus, note: 'Status updated by HR' };
-    this.api.post<any>(API.APPLICATIONS.UPDATE_STATUS(app.id), payload).subscribe({
+
+    const payload: any = {
+      status: this.newStatus,
+      note: this.newNote || 'Status updated by HR'
+    };
+
+    // Send interview details only when interview is scheduled
+    if (this.newStatus === 'INTERVIEW_SCHEDULED') {
+
+      payload.interview_date = this.interviewDate;
+      payload.interview_time = this.interviewTime;
+      payload.interview_type = this.interviewType;
+      payload.meeting_link = this.meetingLink;
+      payload.notes = this.interviewNotes;
+
+    }
+
+    this.api.post<any>(
+      API.APPLICATIONS.UPDATE_STATUS(app.id),
+      payload
+    ).subscribe({
+
       next: (res) => {
+
         this.updating.set(false);
+
         this.selectedApp.set(res.application);
+
         this.loadApplications();
+
+        alert('Status updated successfully.');
+
       },
+
       error: () => {
+
         this.updating.set(false);
+
         alert('Failed to update status.');
+
       }
+
     });
+
   }
 
   addNote(app: Application): void {

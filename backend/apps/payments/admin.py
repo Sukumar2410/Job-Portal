@@ -81,3 +81,11 @@ class SubscriptionUsageAdmin(admin.ModelAdmin):
         'created_at',
         'updated_at',
     )
+
+from .models import SubscriptionReminder
+
+@admin.register(SubscriptionReminder)
+class SubscriptionReminderAdmin(admin.ModelAdmin):
+    list_display = ('subscription', 'reminder_type', 'sent_at', 'is_successful')
+    list_filter = ('reminder_type', 'is_successful')
+    search_fields = ('subscription__user__email', 'subscription__company__name')

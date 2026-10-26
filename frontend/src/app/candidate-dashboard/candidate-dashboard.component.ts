@@ -5,11 +5,14 @@ import { AuthService } from '../core/services/auth.service';
 import { AnalyticsService, CandidateDashboardData } from '../core/services/analytics.service';
 import { TopNavComponent } from '../shared/top-nav/top-nav.component';
 import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { ReportService } from '../core/services/report.service';
+import { ToastService } from '../core/services/toast.service';
 
 @Component({
   selector: 'app-candidate-dashboard',
   standalone: true,
-  imports: [CommonModule, TopNavComponent, RouterLink],
+  imports: [CommonModule, TopNavComponent, RouterLink, FormsModule,],
   template: `
     <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
 
@@ -138,8 +141,22 @@ import { RouterLink } from '@angular/router';
               <div class="bg-white rounded-2xl shadow-soft overflow-hidden animate-slide-up" style="animation-delay: 0.4s;">
                 <div class="h-24 bg-gradient-to-r from-primary-500 to-purple-600"></div>
                 <div class="px-6 pb-6">
-                  <div class="w-20 h-20 bg-gradient-to-br from-primary-500 to-purple-600 rounded-full border-4 border-white -mt-10 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                    {{ getInitials() }}
+                  <div class="w-20 h-20 rounded-full border-4 border-white -mt-10 overflow-hidden shadow-lg bg-white">
+
+                    <img
+                      *ngIf="user?.profile_picture"
+                      [src]="user.profile_picture"
+                      class="w-full h-full object-cover"
+                      alt="Profile Picture">
+
+                    <div
+                      *ngIf="!user?.profile_picture"
+                      class="w-full h-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+
+                      {{ getInitials() }}
+
+                    </div>
+
                   </div>
                   <h3 class="mt-4 text-lg font-bold text-gray-900">{{ user?.first_name }} {{ user?.last_name }}</h3>
                   <p class="text-sm text-gray-500">{{ user?.email }}</p>
@@ -253,14 +270,22 @@ import { RouterLink } from '@angular/router';
               <div class="bg-white rounded-2xl shadow-soft p-6 animate-slide-up" style="animation-delay: 0.5s;">
                 <h3 class="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <button *ngFor="let action of quickActions"
-                      [routerLink]="action.route"
-                      class="group flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 hover:border-primary-300 hover:bg-primary-50 transition-all">
-                    <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"
+                  <button
+                    *ngFor="let action of quickActions"
+                    (click)="handleQuickAction(action)"
+                    class="group flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 hover:border-primary-300 hover:bg-primary-50 transition-all">
+
+                    <div
+                      class="w-12 h-12 rounded-xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"
                       [style.background]="action.bg">
+
                       <span class="text-2xl">{{ action.icon }}</span>
                     </div>
-                    <span class="text-sm font-semibold text-gray-700 text-center">{{ action.label }}</span>
+
+                    <span class="text-sm font-semibold text-gray-700 text-center">
+                      {{ action.label }}
+                    </span>
+
                   </button>
                 </div>
               </div>
@@ -269,6 +294,86 @@ import { RouterLink } from '@angular/router';
         </div>
 
       </div>
+
+      <!-- REPORT MODAL -->
+      <div *ngIf="showReportModal()"
+        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+
+          <div class="flex items-center justify-between p-6 border-b">
+            <h2 class="text-xl font-bold">🚩 Report an Issue</h2>
+
+            <button (click)="closeReportModal()"
+              class="text-gray-500 hover:text-black text-xl">
+              ✕
+            </button>
+          </div>
+
+          <div class="p-6 space-y-4">
+
+            <div *ngIf="reportSuccess()"
+              class="bg-green-100 text-green-700 p-3 rounded-lg">
+              Report submitted successfully!
+            </div>
+
+            <div>
+              <label class="text-sm font-semibold">Subject *</label>
+
+              <input
+                [(ngModel)]="reportForm.subject"
+                class="w-full mt-1 border rounded-lg px-3 py-2"
+                placeholder="Example: Unable to apply for jobs">
+            </div>
+
+            <div>
+              <label class="text-sm font-semibold">Priority</label>
+
+              <select
+                [(ngModel)]="reportForm.priority"
+                class="w-full mt-1 border rounded-lg px-3 py-2">
+
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+
+              </select>
+            </div>
+
+            <div>
+              <label class="text-sm font-semibold">Description *</label>
+
+              <textarea
+                [(ngModel)]="reportForm.description"
+                rows="5"
+                class="w-full mt-1 border rounded-lg px-3 py-2"
+                placeholder="Describe your issue...">
+              </textarea>
+            </div>
+
+          </div>
+
+          <div class="flex justify-end gap-3 p-6 border-t">
+
+            <button
+              (click)="closeReportModal()"
+              class="px-4 py-2 border rounded-lg">
+              Cancel
+            </button>
+
+            <button
+              (click)="submitReport()"
+              [disabled]="reportLoading()"
+              class="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+
+              {{ reportLoading() ? 'Submitting...' : 'Submit Report' }}
+
+            </button>
+
+          </div>
+
+        </div>
+      </div>
     </div>
   `
 })
@@ -276,11 +381,23 @@ export class CandidateDashboardComponent implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
   private analyticsService = inject(AnalyticsService);
+  private reportService = inject(ReportService);
+  private toast = inject(ToastService);
 
   user: any = null;
   loading = signal(true);
   error = signal<string | null>(null);
   data = signal<CandidateDashboardData | null>(null);
+
+  showReportModal = signal(false);
+  reportLoading = signal(false);
+  reportSuccess = signal(false);
+
+  reportForm = {
+    subject: '',
+    priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH',
+    description: ''
+  };
 
       quickActions = [
     { icon: '🔍', label: 'Browse Jobs', bg: 'linear-gradient(135deg, #dbeafe, #bfdbfe)', route: '/jobs' },
@@ -294,6 +411,8 @@ export class CandidateDashboardComponent implements OnInit {
     { icon: '✨', label: 'AI Recommended Jobs', bg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', route: '/ai-recommended-jobs' },
     { icon: '🤖', label: 'AI Career Center', bg: 'linear-gradient(135deg, #ede9fe, #c4b5fd)', route: '/ai-career-center'},
     { icon: '💳', label: 'Billing', bg: 'linear-gradient(135deg, #fef3c7, #fde68a)', route: '/billing' },
+    { icon: '📋', label: 'My Reports', bg: 'linear-gradient(135deg,#dbeafe,#bfdbfe)', route: '/my-reports' },
+    { icon: '🚩', label: 'Report Issue', bg: 'linear-gradient(135deg,#fee2e2,#fecaca)', route: ''}
   ];
 
   private statusColors: Record<string, { bg: string; color: string }> = {
@@ -377,5 +496,59 @@ export class CandidateDashboardComponent implements OnInit {
 
   logout(): void {
     this.auth.logout();
+  }
+
+  openReportModal(): void {
+  this.reportSuccess.set(false);
+  this.showReportModal.set(true);
+}
+
+  closeReportModal(): void {
+    this.showReportModal.set(false);
+
+    this.reportForm = {
+      subject: '',
+      priority: 'MEDIUM',
+      description: ''
+    };
+  }
+
+  submitReport(): void {
+
+    if (
+      !this.reportForm.subject.trim() ||
+      !this.reportForm.description.trim()
+    ) {
+      this.toast.warning('Please fill all required fields.');
+      return;
+    }
+
+    this.reportLoading.set(true);
+
+    this.reportService.createReport(this.reportForm).subscribe({
+      next: () => {
+        this.reportLoading.set(false);
+        this.reportSuccess.set(true);
+        this.toast.success('Report submitted successfully!');
+
+        setTimeout(() => {
+          this.closeReportModal();
+        }, 1500);
+      },
+      error: () => {
+        this.reportLoading.set(false);
+        this.toast.error('Failed to submit report.');
+      }
+    });
+  }
+
+  handleQuickAction(action: any): void {
+
+    if (action.label === 'Report Issue') {
+      this.openReportModal();
+      return;
+    }
+
+    this.router.navigate([action.route]);
   }
 }

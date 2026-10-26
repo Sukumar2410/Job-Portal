@@ -792,39 +792,36 @@ export class AiCareerCenterComponent {
       // =================================================
       // ERROR
       // =================================================
-
       error: (err) => {
+        console.error('AI Chat Error:', err);
 
-        console.error(
-          'AI Chat Error:',
-          err
-        );
+        // Determine specific message based on HTTP status code
+        let errorMessage = '❌ Sorry, something went wrong while contacting the AI.';
 
+        if (err.status === 403) {
+          // Extract backend message: {"detail": "Premium subscription required."}
+          const backendDetail = err.error?.detail;
+          errorMessage = backendDetail 
+            ? `🔒 ${backendDetail}` 
+            : '🔒 AI Assistant requires an active premium subscription.';
+        } else if (err.error?.detail) {
+          // Fallback for other backend structured error responses (e.g. 400 Bad Request)
+          errorMessage = `❌ ${err.error.detail}`;
+        }
 
         this.messages.update(messages => [
-
           ...messages,
-
           {
             role: 'assistant',
-
-            message:
-              '❌ Sorry, something went wrong while contacting the AI.',
-
+            message: errorMessage,
             timestamp: new Date()
           }
-
         ]);
 
-
         this.loading.set(false);
-
         this.scrollToBottom();
-
       }
-
     });
-
 
     // =====================================================
     // RESET INPUT

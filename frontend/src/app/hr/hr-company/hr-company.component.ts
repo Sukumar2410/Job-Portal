@@ -118,10 +118,28 @@ import { Company } from '../../core/models/company.model';
             <div class="h-32 bg-gradient-to-br from-emerald-600 via-teal-700 to-cyan-700 relative">
               <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
             </div>
-            <div class="px-6 pb-6">
-              <div class="flex items-start gap-4 -mt-12">
-                <div class="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg flex items-center justify-center text-3xl font-bold text-white flex-shrink-0 border-4 border-white">
-                  {{ getFirstChar(c.name) }}
+            <div class="relative px-6 pb-6">
+              <div class="flex items-start gap-4 -mt-10 relative z-20">
+                <div
+                  class="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600
+                        rounded-2xl shadow-xl flex items-center justify-center
+                        text-3xl font-bold text-white flex-shrink-0
+                        border-4 border-white overflow-hidden"
+                >
+                  <img
+                    *ngIf="c.logo"
+                    [src]="c.logo"
+                    alt="Company Logo"
+                    class="w-full h-full object-cover"
+                  />
+
+                  <div
+                    *ngIf="!c.logo"
+                    class="w-full h-full bg-gradient-to-br from-emerald-500 to-teal-600
+                          flex items-center justify-center text-3xl font-bold text-white"
+                  >
+                    {{ getFirstChar(c.name) }}
+                  </div>
                 </div>
                 <div class="flex-1 min-w-0 pt-12">
                   <div class="flex items-center gap-2 flex-wrap">
@@ -258,6 +276,7 @@ export class HrCompanyComponent implements OnInit {
   saving = signal(false);
   saveSuccess = signal(false);
   error = signal<string | null>(null);
+  logoPreview: string | null = null;
 
   form: any = {
     name: '',
@@ -270,10 +289,31 @@ export class HrCompanyComponent implements OnInit {
     contact_email: '',
     contact_phone: '',
     linkedin_url: '',
+    logo: null,
   };
 
   ngOnInit(): void {
     this.loadCompany();
+  }
+
+  onLogoSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+
+    if (!input.files || input.files.length === 0) {
+      return;
+    }
+
+    const file = input.files[0];
+
+    // Store the file for upload
+    this.form.logo = file;
+
+    // Preview in UI
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.logoPreview = reader.result as string;
+    };
+    reader.readAsDataURL(file);
   }
 
   loadCompany(): void {

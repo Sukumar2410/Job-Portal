@@ -1,0 +1,18 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h2>Hello {{ candidate_name }},</h2>
+
+<p>Thank you for applying for the <strong>{{ job_title }}</strong> position at <strong>{{ company_name }}</strong>.</p>
+
+<p>After careful consideration, we've decided to move forward with other candidates.</p>
+
+{% if reason %}
+<div class="card">
+  <strong>Feedback</strong><br><br>
+  {{ reason }}
+</div>
+{% endif %}
+
+<p>We truly appreciate your interest and encourage you to apply again in the future.</p>
+{% endblock %}

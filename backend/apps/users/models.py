@@ -105,7 +105,7 @@ class CandidateProfile(models.Model):
     summary = models.TextField(blank=True)
     resume = models.FileField(upload_to='resumes/', blank=True, null=True)
     skills = models.TextField(blank=True, help_text='Comma-separated skills')
-    experience_years = models.PositiveIntegerField(default=0)
+    experience_years = models.DecimalField(max_digits=4, decimal_places=1, default=0.0)
     current_location = models.CharField(max_length=200, blank=True)
     expected_salary = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     linkedin_url = models.URLField(blank=True)
@@ -213,6 +213,10 @@ def generate_token():
     """Generate a secure random token"""
     return secrets.token_urlsafe(48)
 
+def generate_token():
+    import uuid
+    return uuid.uuid4().hex
+
 
 class EmailVerificationToken(models.Model):
     """Token for email verification"""
@@ -243,12 +247,17 @@ class EmailVerificationToken(models.Model):
         return not self.is_used and not self.is_expired
 
 class PasswordResetToken(models.Model):
-    """Token for password reset"""
     user = models.ForeignKey(
-        'User', on_delete=models.CASCADE,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
         related_name='password_reset_tokens'
     )
-    token = models.CharField(max_length=100, unique=True, default=generate_token, db_index=True)
+    token = models.CharField(
+        max_length=100,
+        unique=True,
+        default=generate_token,
+        db_index=True
+    )
     is_used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     used_at = models.DateTimeField(null=True, blank=True)
@@ -263,7 +272,6 @@ class PasswordResetToken(models.Model):
 
     @property
     def is_expired(self):
-        from django.conf import settings
         expiry_hours = getattr(settings, 'PASSWORD_RESET_TOKEN_EXPIRY_HOURS', 1)
         return timezone.now() > self.created_at + timedelta(hours=expiry_hours)
 

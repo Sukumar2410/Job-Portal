@@ -74,19 +74,36 @@ def candidate_dashboard(request):
 @permission_classes([IsHR])
 def hr_dashboard(request):
     """GET /api/analytics/hr-dashboard/"""
+
+    from apps.users.models import HRProfile
+
     user = request.user
-    hr_profile = getattr(user, 'hr_profile', None)
-    if not hr_profile or not hr_profile.company:
+
+    # Fetch HR profile directly from database
+    hr_profile = (
+        HRProfile.objects
+        .select_related('company')
+        .filter(user=user)
+        .first()
+    )
+
+    if not hr_profile:
+        return Response(
+            {'detail': 'HR profile not found.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    if not hr_profile.company:
         return Response(
             {'detail': 'You must be linked to a company to view analytics.'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
     company = hr_profile.company
+
     jobs = Job.objects.filter(company=company)
     applications = Application.objects.filter(job__company=company)
 
-    # Hiring funnel
     funnel = {
         'applied': applications.count(),
         'under_review': applications.filter(status=ApplicationStatus.UNDER_REVIEW).count(),
@@ -98,8 +115,8 @@ def hr_dashboard(request):
         'rejected': applications.filter(status=ApplicationStatus.REJECTED).count(),
     }
 
-    # Applications over last 30 days
     thirty_days_ago = timezone.now() - timedelta(days=30)
+
     apps_over_time = (
         applications.filter(applied_at__gte=thirty_days_ago)
         .annotate(day=TruncDate('applied_at'))
@@ -107,39 +124,65 @@ def hr_dashboard(request):
         .annotate(count=Count('id'))
         .order_by('day')
     )
-    apps_over_time_list = [
-        {'date': str(item['day']), 'count': item['count']} for item in apps_over_time
-    ]
 
-    # Top jobs by applications
-    top_jobs = jobs.annotate(app_count=Count('applications')).order_by('-app_count')[:5]
-    top_jobs_list = [{
-        'id': j.id,
-        'title': j.title,
-        'applications': j.app_count,
-        'views': j.views_count,
-    } for j in top_jobs]
+    top_jobs = (
+        jobs.annotate(app_count=Count('applications'))
+        .order_by('-app_count')[:5]
+    )
 
     week_ago = timezone.now() - timedelta(days=7)
 
     data = {
+        'company': {
+            'id': company.id,
+            'name': company.name,
+        },
+
         'total_jobs': jobs.count(),
         'active_jobs': jobs.filter(status=JobStatus.ACTIVE).count(),
         'draft_jobs': jobs.filter(status=JobStatus.DRAFT).count(),
         'closed_jobs': jobs.filter(status=JobStatus.CLOSED).count(),
-        'total_applications': applications.count(),
-        'new_applications_this_week': applications.filter(applied_at__gte=week_ago).count(),
-        'interviews_scheduled': Interview.objects.filter(
-            application__job__company=company, is_completed=False
-        ).count(),
-        'hired_count': applications.filter(status=ApplicationStatus.HIRED).count(),
-        'total_job_views': sum(jobs.values_list('views_count', flat=True)),
-        'hiring_funnel': funnel,
-        'applications_over_time': apps_over_time_list,
-        'top_jobs_by_applications': top_jobs_list,
-    }
-    return Response(data)
 
+        'total_applications': applications.count(),
+        'new_applications_this_week': applications.filter(
+            applied_at__gte=week_ago
+        ).count(),
+
+        'interviews_scheduled': Interview.objects.filter(
+            application__job__company=company,
+            is_completed=False
+        ).count(),
+
+        'hired_count': applications.filter(
+            status=ApplicationStatus.HIRED
+        ).count(),
+
+        'total_job_views': sum(
+            jobs.values_list('views_count', flat=True)
+        ),
+
+        'hiring_funnel': funnel,
+
+        'applications_over_time': [
+            {
+                'date': str(item['day']),
+                'count': item['count']
+            }
+            for item in apps_over_time
+        ],
+
+        'top_jobs_by_applications': [
+            {
+                'id': job.id,
+                'title': job.title,
+                'applications': job.app_count,
+                'views': job.views_count,
+            }
+            for job in top_jobs
+        ],
+    }
+
+    return Response(data)
 
 @api_view(['GET'])
 @permission_classes([IsSuperAdmin])

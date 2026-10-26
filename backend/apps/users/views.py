@@ -1,6 +1,9 @@
 from django.shortcuts import render
 
+from django.db.models import Count, Q
+
 # Create your views here.
+from httpcore import request
 from rest_framework import status, generics, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -8,12 +11,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from drf_spectacular.utils import extend_schema, OpenApiTypes
 from rest_framework import viewsets
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters as drf_filters
 from rest_framework.decorators import action
+from .emails import send_welcome_email
 
 from .models import User, CandidateProfile, HRProfile, UserRole
 from .serializers import (
@@ -23,11 +27,13 @@ from .serializers import (
     CandidateProfileSerializer,
     HRProfileSerializer,
     ChangePasswordSerializer,
+    AdminUserDetailSerializer,
 )
 
 
 class RegisterView(generics.CreateAPIView):
-    """POST /api/auth/register/ - Register a new Candidate or HR user"""
+    """POST /api/auth/register/ - Register a new Candidate, HR or Super Admin"""
+
     queryset = User.objects.all()
     serializer_class = UserRegistrationSerializer
     permission_classes = [AllowAny]
@@ -37,30 +43,47 @@ class RegisterView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # Generate JWT tokens on successful registration
+        # Generate JWT
         refresh = RefreshToken.for_user(user)
-        refresh['email'] = user.email
-        refresh['role'] = user.role
-        refresh['full_name'] = user.full_name
+        refresh["email"] = user.email
+        refresh["role"] = user.role
+        refresh["full_name"] = user.full_name
 
-        # Create email verification token & send email
-        from .models import EmailVerificationToken
-        from .emails import send_verification_email
-        verify_token = EmailVerificationToken.objects.create(user=user)
+        # ---------------------------------------------------------
+        # Send Welcome Email (ALL ROLES)
+        # ---------------------------------------------------------
         try:
-            send_verification_email(user, verify_token.token)
+            from .emails import send_welcome_email
+            send_welcome_email(user)
         except Exception as e:
-            # Log but don't fail registration
-            print(f'[Email Warning] Failed to send verification email: {e}')
+            print(f"[Email Warning] Welcome email failed: {e}")
 
-        return Response({
-            'message': 'Registration successful. Please check your email to verify your account.',
-            'user': UserSerializer(user).data,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }
-        }, status=status.HTTP_201_CREATED)
+        # ---------------------------------------------------------
+        # Send Verification Email (ALL ROLES)
+        # ---------------------------------------------------------
+        try:
+            from .models import EmailVerificationToken
+            from .emails import send_verification_email
+
+            send_welcome_email(user)
+
+            verify_token = EmailVerificationToken.objects.create(user=user)
+            send_verification_email(user, verify_token.token)
+
+        except Exception as e:
+            print(f"[Email Warning] Verification email failed: {e}")
+
+        return Response(
+            {
+                "message": "Registration successful. Please check your email to verify your account.",
+                "user": UserSerializer(user).data,
+                "tokens": {
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token),
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class LoginView(TokenObtainPairView):
@@ -96,16 +119,74 @@ class CurrentUserView(generics.RetrieveUpdateAPIView):
 
 
 class CandidateProfileView(generics.RetrieveUpdateAPIView):
-    """GET/PATCH /api/auth/candidate-profile/ - Manage candidate profile"""
+    """
+    GET/PATCH /api/auth/candidate-profile/
+    - GET: Candidate profile + user details
+    - PATCH JSON: Update profile fields
+    - PATCH FormData: Upload profile picture
+    """
     serializer_class = CandidateProfileSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_object(self):
         if self.request.user.role != UserRole.CANDIDATE:
-            self.permission_denied(self.request, message='Only candidates can access this.')
-        profile, _ = CandidateProfile.objects.get_or_create(user=self.request.user)
+            self.permission_denied(
+                self.request,
+                message="Only candidates can access this."
+            )
+
+        profile, _ = CandidateProfile.objects.get_or_create(
+            user=self.request.user
+        )
         return profile
 
+    def partial_update(self, request, *args, **kwargs):
+        profile = self.get_object()
+
+        # ------------------------------------
+        # 1. Upload Profile Picture (User model)
+        # ------------------------------------
+        profile_picture = request.FILES.get("profile_picture")
+
+        if profile_picture:
+            user = profile.user
+
+            # Delete old image if it exists
+            if user.profile_picture:
+                try:
+                    user.profile_picture.delete(save=False)
+                except Exception:
+                    pass
+
+            user.profile_picture = profile_picture
+            user.save()
+
+        # ------------------------------------
+        # 2. Update Candidate Profile fields
+        # ------------------------------------
+        serializer = self.get_serializer(
+            profile,
+            data=request.data,
+            partial=True
+        )
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        # ------------------------------------
+        # 3. Refresh objects from database
+        # ------------------------------------
+        profile.refresh_from_db()
+        profile.user.refresh_from_db()
+
+        # Return fresh data with profile picture URL
+        return Response(
+            CandidateProfileSerializer(
+                profile,
+                context={"request": request}
+            ).data
+        )
 
 class HRProfileView(generics.RetrieveUpdateAPIView):
     """GET/PATCH /api/auth/hr-profile/ - Manage HR profile"""
@@ -525,6 +606,44 @@ class AdminUserViewSet(viewsets.ModelViewSet):
     search_fields = ['email', 'first_name', 'last_name', 'phone']
     ordering_fields = ['date_joined', 'email', 'role']
 
+    def list(self, request, *args, **kwargs):
+        """
+        List users with pagination and global platform statistics.
+
+        The statistics are calculated from the complete User table,
+        not from the current paginated page.
+        """
+
+        stats = User.objects.aggregate(
+            total_users=Count('id'),
+
+            candidates=Count(
+                'id',
+                filter=Q(role=UserRole.CANDIDATE)
+            ),
+
+            recruiters=Count(
+                'id',
+                filter=Q(role=UserRole.HR)
+            ),
+
+            admins=Count(
+                'id',
+                filter=Q(role=UserRole.SUPER_ADMIN)
+            ),
+
+            verified=Count(
+                'id',
+                filter=Q(is_verified=True)
+            ),
+        )
+
+        response = super().list(request, *args, **kwargs)
+
+        response.data['stats'] = stats
+
+        return response
+
     def get_permissions(self):
         from apps.users.permissions import IsSuperAdmin
         return [IsSuperAdmin()]
@@ -534,6 +653,32 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         responses={200: OpenApiTypes.OBJECT},
         tags=['Admin - Users'],
     )
+
+    @extend_schema(
+        summary='Get Complete User Details',
+        description=(
+            'Returns complete user information for Super Admin. '
+            'The response includes role-specific profile information '
+            'for Candidates and HR users.'
+        ),
+        responses={200: AdminUserDetailSerializer},
+        tags=['Admin - Users'],
+    )
+    @action(
+        detail=True,
+        methods=['get'],
+        url_path='details'
+    )
+    def details(self, request, pk=None):
+        user = self.get_object()
+
+        serializer = AdminUserDetailSerializer(
+            user,
+            context={'request': request}
+        )
+
+        return Response(serializer.data)
+
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
         user = self.get_object()

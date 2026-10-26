@@ -33,6 +33,7 @@ export interface Subscription {
   auto_renew: boolean;
   is_trial: boolean;
   trial_ends_at: string | null;
+  jobs_posted_used: number;
   coupon_code?: string | null;
   discount_applied?: number;
   is_active_now?: boolean;
@@ -71,7 +72,7 @@ export interface CreateOrderResponse {
 }
 
 export interface VerifyPaymentPayload {
-  razorpay_order_id: string;
+  razorpay_subscription_id: string;
   razorpay_payment_id: string;
   razorpay_signature: string;
 }

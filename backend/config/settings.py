@@ -13,8 +13,6 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 GROQ_API_KEY = config("GROQ_API_KEY")
 
 # ==================== APPLICATIONS ====================
-# ==================== APPLICATIONS ====================
-# ==================== APPLICATIONS ====================
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -25,7 +23,6 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
-    # 'daphne' removed from here to prevent duplicate listing
     'channels',
     'rest_framework',
     'rest_framework_simplejwt',
@@ -50,6 +47,7 @@ LOCAL_APPS = [
     'apps.ai_coach',
     'apps.social',
     'apps.messaging',
+    'apps.reports',
 ]
 
 INSTALLED_APPS = ['daphne'] + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -71,7 +69,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / "templates"],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -154,7 +152,6 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv())
 CORS_ALLOW_CREDENTIALS = True
 
-# Explicitly allow all common methods and headers
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -176,7 +173,6 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# During development, this is safe. Remove for production.
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 
@@ -189,10 +185,14 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
 }
 
-# ==================== EMAIL CONFIG ====================
-# Development: prints emails to console. Change EMAIL_BACKEND to SMTP in production.
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'Job Portal <no-reply@jobportal.local>'
+# ==================== EMAIL CONFIG (SMTP) ====================
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Enterprise Job Portal <no-reply@jobportal.local>")
 
 # Frontend URLs used in email links (Angular routes)
 FRONTEND_BASE_URL = config('FRONTEND_BASE_URL', default='http://localhost:4200')
@@ -209,8 +209,7 @@ RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET', default='')
 
 # ==================== IN MEMORY CHANNEL LAYER ====================
 CHANNEL_LAYERS = {
-    "default":{
-        "BACKEND":
-    "channels.layers.InMemoryChannelLayer",
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }

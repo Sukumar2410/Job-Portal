@@ -9,6 +9,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import F
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, OpenApiTypes, OpenApiParameter
+from django.core.mail import EmailMultiAlternatives
+from django.utils.html import strip_tags
+from django.conf import settings
 
 from apps.users.permissions import IsCandidate, IsHR, IsHROrSuperAdmin
 from apps.users.models import UserRole
@@ -21,8 +24,15 @@ from .serializers import (
     ApplicationStatusUpdateSerializer,
     InterviewSerializer,
     InterviewCreateSerializer,
+    InterviewScheduleSerializer,
 )
 
+from .emails import (
+    send_application_status_email,
+    send_interview_schedule_email,
+    send_offer_email,
+    send_rejection_email,
+)
 
 class ApplicationViewSet(viewsets.ModelViewSet):
     """
@@ -71,9 +81,11 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
+
         # If no resume in application, fallback to profile resume
         candidate_profile = getattr(user, 'candidate_profile', None)
         resume = serializer.validated_data.get('resume_snapshot')
+
         if not resume and candidate_profile and candidate_profile.resume:
             application = serializer.save(
                 candidate=user,
@@ -81,13 +93,15 @@ class ApplicationViewSet(viewsets.ModelViewSet):
             )
         else:
             application = serializer.save(candidate=user)
+            print("STEP 1: Application saved successfully")
+            print(application.id)
 
-        # Increment applications_count on the job
+        # Increment applications count
         Job.objects.filter(pk=application.job.pk).update(
             applications_count=F('applications_count') + 1
         )
 
-        # Create initial status history
+        # Create status history
         ApplicationStatusHistory.objects.create(
             application=application,
             from_status='',
@@ -95,6 +109,224 @@ class ApplicationViewSet(viewsets.ModelViewSet):
             changed_by=user,
             note='Application submitted'
         )
+
+        # ======================================================
+        # EMAIL 1: Beautiful Candidate Confirmation Email
+        # ======================================================
+
+        try:
+
+            subject = "🎉 Application Submitted Successfully | Enterprise Job Portal"
+
+            text_content = f"""
+        Hi {application.candidate.full_name},
+
+        Your application has been submitted successfully.
+
+        Job: {application.job.title}
+        Company: {application.job.company.name}
+
+        Thank you for applying.
+
+        Enterprise Job Portal
+        """
+
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <body style="margin:0;padding:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fb;padding:30px 0;">
+                <tr>
+                <td align="center">
+
+                    <table width="650" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.08);">
+
+                    <tr>
+                        <td align="center" style="background:#0f766e;padding:35px;">
+                        <h1 style="color:#ffffff;margin:0;font-size:30px;">
+                            Enterprise Job Portal
+                        </h1>
+                        <p style="color:#d1fae5;margin-top:8px;">
+                            Application Successfully Submitted
+                        </p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding:35px;">
+
+                        <h2 style="margin:0;color:#111827;">
+                            Hi {application.candidate.full_name} 👋
+                        </h2>
+
+                        <p style="color:#4b5563;line-height:1.7;margin-top:15px;">
+                            Congratulations! Your application has been successfully submitted.
+                            Our recruitment team will review your profile and you'll receive
+                            updates whenever the status changes.
+                        </p>
+
+                        <table width="100%" cellpadding="12" cellspacing="0"
+                            style="margin:25px 0;background:#f0fdfa;border-left:5px solid #0f766e;border-radius:8px;">
+
+                            <tr>
+                            <td><b>💼 Job Title</b></td>
+                            <td>{application.job.title}</td>
+                            </tr>
+
+                            <tr>
+                            <td><b>🏢 Company</b></td>
+                            <td>{application.job.company.name}</td>
+                            </tr>
+
+                            <tr>
+                            <td><b>📅 Applied On</b></td>
+                            <td>{application.applied_at.strftime("%d %B %Y")}</td>
+                            </tr>
+
+                            <tr>
+                            <td><b>📌 Status</b></td>
+                            <td>
+                                <span style="background:#dcfce7;color:#166534;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:bold;">
+                                APPLIED
+                                </span>
+                            </td>
+                            </tr>
+
+                        </table>
+
+                        <div style="text-align:center;margin:35px 0;">
+                            <a href="http://localhost:4200/my-applications"
+                            style="background:#0f766e;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+                            View My Applications
+                            </a>
+                        </div>
+
+                        <div style="background:#fff7ed;border-radius:8px;padding:18px;">
+                            <h3 style="margin:0 0 10px;color:#9a3412;">
+                            🚀 What happens next?
+                            </h3>
+
+                            <ul style="margin:0;padding-left:20px;color:#7c2d12;line-height:1.8;">
+                            <li>Resume screening by HR</li>
+                            <li>Shortlisting process</li>
+                            <li>Interview scheduling (if selected)</li>
+                            <li>Offer & hiring updates via email</li>
+                            </ul>
+                        </div>
+
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td align="center" style="background:#f9fafb;padding:22px;color:#6b7280;font-size:13px;">
+                        © 2026 Enterprise Job Portal
+                        <br>
+                        Building careers, connecting talent.
+                        </td>
+                    </tr>
+
+                    </table>
+
+                </td>
+                </tr>
+            </table>
+            </body>
+            </html>
+            """
+
+            email = EmailMultiAlternatives(
+                subject,
+                text_content,
+                settings.DEFAULT_FROM_EMAIL,
+                [application.candidate.email]
+            )
+
+            email.attach_alternative(html_content, "text/html")
+            email.send()
+
+        except Exception as e:
+            print("Candidate application email failed:", e)
+        # ======================================================
+        # EMAIL 2 : HR New Applicant Notification
+        # ======================================================
+
+        hr_email = (
+            application.job.company.created_by.email
+            if application.job.company.created_by
+            else application.job.company.contact_email
+        )
+
+        if hr_email:
+
+            hr_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <body style="margin:0;padding:0;background:#F3F4F6;font-family:Arial,sans-serif;">
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;">
+            <tr>
+            <td align="center">
+
+            <table width="620" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:14px;overflow:hidden;">
+
+            <tr>
+            <td style="background:#1E40AF;padding:28px;text-align:center;">
+                <h1 style="color:white;margin:0;">New Job Application</h1>
+                <p style="color:#DBEAFE;margin-top:8px;">A candidate has applied for your job</p>
+            </td>
+            </tr>
+
+            <tr>
+            <td style="padding:35px;">
+
+                <h2 style="margin-top:0;">Hello HR,</h2>
+
+                <p style="color:#4B5563;line-height:24px;">
+                A new candidate has submitted an application.
+                Please review the profile from your HR dashboard.
+                </p>
+
+                <table width="100%" cellpadding="12" style="background:#F9FAFB;border-radius:10px;margin:25px 0;">
+                    <tr><td><strong>Candidate</strong></td><td>{application.candidate.full_name}</td></tr>
+                    <tr><td><strong>Email</strong></td><td>{application.candidate.email}</td></tr>
+                    <tr><td><strong>Job Title</strong></td><td>{application.job.title}</td></tr>
+                    <tr><td><strong>Applied On</strong></td><td>{application.applied_at.strftime("%d %b %Y %I:%M %p")}</td></tr>
+                </table>
+
+                <div style="text-align:center;margin:35px 0;">
+                <a href="http://localhost:4200/hr-dashboard/applications"
+                style="background:#1E40AF;color:#fff;text-decoration:none;padding:14px 26px;border-radius:8px;font-weight:bold;">
+                Review Candidate
+                </a>
+                </div>
+
+                <hr style="border:none;border-top:1px solid #E5E7EB;margin:30px 0;">
+
+                <p style="font-size:12px;color:#9CA3AF;text-align:center;">
+                Enterprise Job Portal Recruitment System
+                </p>
+
+            </td>
+            </tr>
+
+            </table>
+
+            </td>
+            </tr>
+            </table>
+
+            </body>
+            </html>
+            """
+
+            hr_message = EmailMultiAlternatives(
+                subject=f"📩 New Applicant | {application.job.title}",
+                body=strip_tags(hr_html),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[hr_email],
+            )
+            hr_message.attach_alternative(hr_html, "text/html")
+            hr_message.send()
 
     # ---------- Candidate Actions ----------
     @action(detail=True, methods=['post'])
@@ -121,55 +353,123 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         ApplicationStatusHistory.objects.create(
             application=application,
             from_status=old_status,
-            to_status=ApplicationStatus.WITHDRAWN,
-            changed_by=request.user,
-            note=request.data.get('reason', 'Withdrawn by candidate')
-        )
-        return Response({'message': 'Application withdrawn successfully.'})
-
-    # ---------- HR Actions ----------
-    @action(detail=True, methods=['post'], url_path='update-status')
-    def update_status(self, request, pk=None):
-        """POST /api/applications/{id}/update-status/ - HR updates status"""
-        application = self.get_object()
-
-        # Ensure HR belongs to the job's company
-        hr_profile = getattr(request.user, 'hr_profile', None)
-        if not hr_profile or hr_profile.company_id != application.job.company_id:
-            return Response(
-                {'detail': 'You cannot update applications for jobs of other companies.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        serializer = ApplicationStatusUpdateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        new_status = serializer.validated_data['status']
-        note = serializer.validated_data.get('note', '')
-        rejection_reason = serializer.validated_data.get('rejection_reason', '')
-        rating = serializer.validated_data.get('rating')
-
-        old_status = application.status
-        application.status = new_status
-        application.status_changed_at = timezone.now()
-        if rejection_reason:
-            application.rejection_reason = rejection_reason
-        if rating is not None:
-            application.rating = rating
-        application.save()
-
-        ApplicationStatusHistory.objects.create(
-            application=application,
-            from_status=old_status,
             to_status=new_status,
             changed_by=request.user,
             note=note
         )
 
+        # Send candidate notification email
+        # Send email based on status
+        if new_status == ApplicationStatus.OFFERED:
+            send_offer_email(
+                application,
+                salary="18,00,000",
+                joining_date="20 September 2026"
+            )
+        else:
+            send_application_status_email(application)
+
         return Response({
-            'message': f'Status updated from {old_status} to {new_status}.',
-            'application': ApplicationDetailSerializer(application, context={'request': request}).data
+            "message": f"Status updated from {old_status} to {new_status}.",
+            "application": ApplicationDetailSerializer(
+                application,
+                context={"request": request}
+            ).data
         })
+
+    # ---------- HR Actions ----------
+    @action(detail=True, methods=['post'], url_path='update-status')
+    def update_status(self, request, pk=None):
+        """
+        HR updates application status.
+        If Interview Scheduled → creates/updates Interview.
+        Sends beautiful email to candidate.
+        """
+        application = self.get_object()
+
+        serializer = ApplicationStatusUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        old_status = application.status
+        new_status = serializer.validated_data["status"]
+        note = serializer.validated_data.get("note", "")
+        rating = serializer.validated_data.get("rating")
+
+        # -------------------------
+        # Update Application
+        # -------------------------
+        application.status = new_status
+
+        if rating is not None:
+            application.rating = rating
+
+        application.status_changed_at = timezone.now()
+        application.save()
+
+        # -------------------------
+        # Status History
+        # -------------------------
+        ApplicationStatusHistory.objects.create(
+            application=application,
+            from_status=old_status,
+            to_status=new_status,
+            changed_by=request.user,
+            note=note,
+        )
+
+        # -------------------------
+        # Interview Scheduling
+        # -------------------------
+        if new_status == ApplicationStatus.INTERVIEW_SCHEDULED:
+
+            interview_date = request.data.get("interview_date")
+            interview_time = request.data.get("interview_time")
+            interview_type = request.data.get("interview_type", "ONLINE")
+            meeting_link = request.data.get("meeting_link", "")
+            notes = request.data.get("notes", "")
+
+            if interview_date and interview_time:
+                from datetime import datetime
+
+                scheduled_at = datetime.strptime(
+                    f"{interview_date} {interview_time}",
+                    "%Y-%m-%d %H:%M",
+                )
+
+                Interview.objects.update_or_create(
+                    application=application,
+                    defaults={
+                        "scheduled_by": request.user,
+                        "round_name": "Technical Interview",
+                        "mode": interview_type,
+                        "scheduled_at": scheduled_at,
+                        "meeting_link": meeting_link,
+                        "instructions": notes,
+                    },
+                )
+
+        # -------------------------
+        # Candidate Email
+        # -------------------------
+        import traceback
+
+        try:
+            send_application_status_email(application)
+            print("✅ Application status email sent successfully")
+        except Exception as e:
+            print("\n========== EMAIL ERROR ==========")
+            traceback.print_exc()
+            print("================================\n")
+
+        return Response(
+            {
+                "message": f"Status updated from {old_status} to {new_status}.",
+                "application": ApplicationDetailSerializer(
+                    application,
+                    context={"request": request},
+                ).data,
+            }
+        )
 
     @action(detail=True, methods=['post'], url_path='add-note')
     def add_note(self, request, pk=None):
@@ -429,6 +729,14 @@ class InterviewViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('You can only schedule interviews for your company\'s jobs.')
 
         interview = serializer.save(scheduled_by=self.request.user)
+
+        # Send interview invitation email
+        from .emails import send_interview_schedule_email
+
+        try:
+            send_interview_schedule_email(interview)
+        except Exception as e:
+            print(f"[Interview Email Error] {e}")
 
         # Auto-update application status to INTERVIEW_SCHEDULED
         old_status = application.status

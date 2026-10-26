@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { AnalyticsService, AdminDashboardData } from '../core/services/analytics.service';
 import { TopNavComponent } from '../shared/top-nav/top-nav.component';
+import { ReportService } from '../core/services/report.service';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -60,7 +61,7 @@ import { TopNavComponent } from '../shared/top-nav/top-nav.component';
         <div *ngIf="!loading() && !error() && data()">
 
           <!-- Stats -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             <div class="bg-white rounded-2xl p-6 shadow-soft hover:shadow-lg transition-all animate-slide-up">
               <div class="flex items-start justify-between mb-4">
                 <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -111,6 +112,41 @@ import { TopNavComponent } from '../shared/top-nav/top-nav.component';
               </div>
               <div class="text-3xl font-bold text-gray-900 mb-1">{{ data()?.total_applications }}</div>
               <div class="text-sm text-gray-500">Applications</div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 shadow-soft hover:shadow-lg transition-all animate-slide-up"
+                style="animation-delay:0.4s;">
+
+              <div class="flex items-start justify-between mb-4">
+
+                <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <span class="text-2xl text-white">🚩</span>
+                </div>
+
+                <span
+                  class="text-xs font-semibold px-2 py-1 rounded-full"
+                  [class]="highPriorityReports() > 0
+                    ? 'bg-red-100 text-red-600'
+                    : 'bg-green-100 text-green-600'">
+
+                  {{ highPriorityReports() }} High
+
+                </span>
+
+              </div>
+
+              <div class="text-3xl font-bold text-gray-900 mb-1">
+                {{ openReports() }}
+              </div>
+
+              <div class="text-sm text-gray-500">
+                Open Reports
+              </div>
+
+              <div class="mt-2 text-xs text-gray-400">
+                Pending admin action
+              </div>
+
             </div>
           </div>
 
@@ -205,11 +241,14 @@ export class AdminDashboardComponent implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
   private analyticsService = inject(AnalyticsService);
+  private reportService = inject(ReportService);
 
   user: any = null;
   loading = signal(true);
   error = signal<string | null>(null);
   data = signal<AdminDashboardData | null>(null);
+  openReports = signal(0);
+  highPriorityReports = signal(0);
 
     quickActions = [
     { icon: '📊', label: 'Analytics', bg: 'linear-gradient(135deg, #f3e8ff, #e9d5ff)', route: '/admin/analytics' },
@@ -218,6 +257,8 @@ export class AdminDashboardComponent implements OnInit {
     { icon: '🔍', label: 'Audit Logs', bg: 'linear-gradient(135deg, #fef3c7, #fde68a)', route: '/admin/audit-logs' },
     { icon: '📢', label: 'Broadcast', bg: 'linear-gradient(135deg, #fce7f3, #fbcfe8)', route: '/admin/broadcast' },
     { icon: '🔔', label: 'Notifications', bg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', route: '/notifications' },
+    { icon: '🚩', label: 'Reports', route: '/admin/reports', bg: 'linear-gradient(135deg,#fee2e2,#fecaca)' },
+    { icon:'💰', label:'Revenue', route:'/revenue', bg:'linear-gradient(135deg,#dcfce7,#bbf7d0)' }
   ];
 
   ngOnInit(): void {
@@ -226,15 +267,42 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   loadDashboard(): void {
+
     this.loading.set(true);
     this.error.set(null);
+
+    // Existing analytics
     this.analyticsService.getAdminDashboard().subscribe({
-      next: (res) => { this.data.set(res); this.loading.set(false); },
+      next: (res) => {
+        this.data.set(res);
+        this.loading.set(false);
+      },
       error: (err) => {
         this.error.set(err?.error?.detail || 'Failed to load dashboard.');
         this.loading.set(false);
       }
     });
+
+    // Reports KPI
+    this.reportService.adminReports().subscribe({
+      next: (res) => {
+
+        const reports = res.results || [];
+
+        this.openReports.set(
+          reports.filter(r => r.status === 'OPEN').length
+        );
+
+        this.highPriorityReports.set(
+          reports.filter(r =>
+            r.status === 'OPEN' &&
+            r.priority === 'HIGH'
+          ).length
+        );
+
+      }
+    });
+
   }
 
   getRoleEntries(): { role: string; count: number }[] {

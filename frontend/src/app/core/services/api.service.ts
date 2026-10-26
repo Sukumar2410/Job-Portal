@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -30,6 +31,14 @@ export class ApiService {
   postFormData<T>(url: string, formData: FormData): Observable<T> {
     return this.http.post<T>(url, formData);
   }
+
+  patchFormData(endpoint: string, formData: FormData): Observable<any> {
+    return this.http.patch(endpoint, formData);
+  }
+
+  // patchFormData<T>(endpoint: string, formData: FormData): Observable<T> {
+  //   return this.http.patch<T>(endpoint, formData);
+  // }
 
   // Download blob (e.g. resume file)
   downloadFile(url: string): Observable<Blob> {

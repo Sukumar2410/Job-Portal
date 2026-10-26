@@ -7,11 +7,14 @@ import { PaymentsService } from '../core/services/payments.service';
 import { TopNavComponent } from '../shared/top-nav/top-nav.component';
 import { RouterLink } from '@angular/router';
 import { SubscriptionPlan, Subscription } from '../core/models/payment.model';
+import { FormsModule } from '@angular/forms';
+import { ReportService } from '../core/services/report.service';
+import { ToastService } from '../core/services/toast.service';
 
 @Component({
   selector: 'app-hr-dashboard',
   standalone: true,
-    imports: [CommonModule, TopNavComponent, RouterLink],
+    imports: [CommonModule, TopNavComponent, RouterLink, FormsModule],
   template: `
     <div class="min-h-screen overflow-y-auto bg-gradient-to-br from-slate-50 via-emerald-50 to-teal-50">
 
@@ -37,9 +40,17 @@ import { SubscriptionPlan, Subscription } from '../core/models/payment.model';
                 </p>
               </div>
               <div class="flex gap-3">
-                <button routerLink="/hr/jobs/new"
-                  class="px-6 py-3 bg-white text-emerald-700 font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
-                  + Post New Job
+                <button
+                  (click)="openCreateJob()"
+                  [disabled]="!canPostJob()"
+                  class="rounded-xl px-5 py-2 font-semibold transition-all"
+                  [ngClass]="
+                    canPostJob()
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  "
+                >
+                  {{ canPostJob() ? '+ Post New Job' : 'Job Limit Reached' }}
                 </button>
               </div>
             </div>
@@ -215,9 +226,10 @@ import { SubscriptionPlan, Subscription } from '../core/models/payment.model';
               <div class="bg-white rounded-2xl shadow-soft p-6 animate-slide-up" style="animation-delay: 0.5s;">
                 <h3 class="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <button *ngFor="let action of quickActions"
-                      [routerLink]="action.route"
-                      class="group flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 hover:border-emerald-300 hover:bg-emerald-50 transition-all">
+                  <button
+                    *ngFor="let action of quickActions"
+                    (click)="handleQuickAction(action)"
+                    class="group flex flex-col items-center p-4 rounded-xl border-2 border-gray-100 hover:border-emerald-300 hover:bg-emerald-50 transition-all">
                     <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-2 group-hover:scale-110 transition-transform"
                       [style.background]="action.bg">
                       <span class="text-2xl">{{ action.icon }}</span>
@@ -231,6 +243,81 @@ import { SubscriptionPlan, Subscription } from '../core/models/payment.model';
         </div>
 
       </div>
+
+      <!-- REPORT MODAL -->
+      <div *ngIf="showReportModal()"
+        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+
+        <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+
+          <div class="flex items-center justify-between p-6 border-b">
+            <h2 class="text-xl font-bold">🚩 Report an Issue</h2>
+
+            <button (click)="closeReportModal()"
+              class="text-gray-500 hover:text-black text-xl">
+              ✕
+            </button>
+          </div>
+
+          <div class="p-6 space-y-4">
+
+            <div>
+              <label class="text-sm font-semibold">Subject *</label>
+
+              <input
+                [(ngModel)]="reportForm.subject"
+                class="w-full mt-1 border rounded-lg px-3 py-2"
+                placeholder="Example: Unable to apply for jobs">
+            </div>
+
+            <div>
+              <label class="text-sm font-semibold">Priority</label>
+
+              <select
+                [(ngModel)]="reportForm.priority"
+                class="w-full mt-1 border rounded-lg px-3 py-2">
+
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+
+              </select>
+            </div>
+
+            <div>
+              <label class="text-sm font-semibold">Description *</label>
+
+              <textarea
+                [(ngModel)]="reportForm.description"
+                rows="5"
+                class="w-full mt-1 border rounded-lg px-3 py-2"
+                placeholder="Describe your issue...">
+              </textarea>
+            </div>
+
+          </div>
+
+          <div class="flex justify-end gap-3 p-6 border-t">
+
+            <button
+              (click)="closeReportModal()"
+              class="px-4 py-2 border rounded-lg">
+              Cancel
+            </button>
+
+            <button
+              (click)="submitReport()"
+              [disabled]="reportLoading()"
+              class="px-5 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg">
+
+              {{ reportLoading() ? 'Submitting...' : 'Submit Report' }}
+
+            </button>
+
+          </div>
+
+        </div>
+      </div>
     </div>
   `
 })
@@ -239,30 +326,92 @@ export class HrDashboardComponent implements OnInit {
   private router = inject(Router);
   private analyticsService = inject(AnalyticsService);
   private paymentsService = inject(PaymentsService);
+  private reportService = inject(ReportService);
+  private toast = inject(ToastService);
+
+  showReportModal = signal(false);
+  reportLoading = signal(false);
+  
+
+  reportForm = {
+    subject: '',
+    priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH',
+    description: ''
+  };
 
   user: any = null;
   loading = signal(true);
   error = signal<string | null>(null);
   data = signal<HRDashboardData | null>(null);
   subscription = signal<Subscription | null>(null);
+  subscriptionMessage = signal('');
   plans = signal<SubscriptionPlan[]>([]);
   selectedPlan = signal<SubscriptionPlan | null>(null);
 
-      quickActions = [
-    { icon: '📝', label: 'Post Job', bg: 'linear-gradient(135deg, #d1fae5, #a7f3d0)', route: '/hr/jobs/new' },
-    { icon: '💼', label: 'My Jobs', bg: 'linear-gradient(135deg, #dbeafe, #bfdbfe)', route: '/hr/jobs' },
-    { icon: '👥', label: 'Applicants', bg: 'linear-gradient(135deg, #fef3c7, #fde68a)', route: '/hr/applicants' },
-    { icon: '🤖', label: 'AI Recommended Candidates', bg: 'linear-gradient(135deg, #d1fae5, #a7f3d0)', route: '/hr-ai-recommended-candidates' },
-    { icon: '📊', label: 'Analytics', bg: 'linear-gradient(135deg, #f3e8ff, #e9d5ff)', route: '/hr/analytics' },
-    { icon: '🔔', label: 'Notifications', bg: 'linear-gradient(135deg, #fce7f3, #fbcfe8)', route: '/notifications' },
-    { icon: '🏢', label: 'Company', bg: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)', route: '/hr/company' },
-    { icon: '💳', label: 'Billing', bg: 'linear-gradient(135deg, #ede9fe, #ddd6fe)', route: '/billing' },
+    quickActions = [
+    { icon:'📝', label:'Post Job', bg:'linear-gradient(135deg,#d1fae5,#a7f3d0)', route:'/hr/jobs/new' },
+    { icon:'💼', label:'My Jobs', bg:'linear-gradient(135deg,#dbeafe,#bfdbfe)', route:'/hr/jobs' },
+    { icon:'👥', label:'Applicants', bg:'linear-gradient(135deg,#fef3c7,#fde68a)', route:'/hr/applicants' },
+    { icon:'🤖', label:'AI Recommended Candidates', bg:'linear-gradient(135deg,#d1fae5,#a7f3d0)', route:'/hr-ai-recommended-candidates' },
+    { icon:'📊', label:'Analytics', bg:'linear-gradient(135deg,#f3e8ff,#e9d5ff)', route:'/hr/analytics' },
+    { icon:'🔔', label:'Notifications', bg:'linear-gradient(135deg,#fce7f3,#fbcfe8)', route:'/notifications' },
+    { icon:'🏢', label:'Company', bg:'linear-gradient(135deg,#e0e7ff,#c7d2fe)', route:'/hr/company' },
+    { icon:'💳', label:'Billing', bg:'linear-gradient(135deg,#ede9fe,#ddd6fe)', route:'/billing' },
+
+    // NEW
+    { icon:'📋', label:'My Reports', bg:'linear-gradient(135deg,#dbeafe,#bfdbfe)', route:'/my-reports' },
+
+    // NEW
+    { icon:'🚩', label:'Report Issue', bg:'linear-gradient(135deg,#fee2e2,#fecaca)', route:'' }
   ];
 
   ngOnInit(): void {
     this.user = this.auth.currentUser();
     this.loadDashboard();
     this.loadBillingData();
+    this.loadSubscription();
+  }
+
+  openCreateJob(): void {
+    if (!this.canPostJob()) {
+      return;
+    }
+
+    this.router.navigate(['/hr/jobs/new']);
+  }
+
+  loadSubscription(): void {
+    this.paymentsService.getMySubscription().subscribe({
+      next: (sub: any) => {
+
+        this.subscription.set(sub);
+
+        if (!sub || sub.status !== 'ACTIVE') {
+          this.subscriptionMessage.set(
+            'Your subscription is inactive. Upgrade your plan to post jobs.'
+          );
+          return;
+        }
+
+        const quota = sub.plan?.job_post_quota ?? 0;
+        const used = sub.job_posts_used ?? 0;
+
+        if (used >= quota) {
+          this.subscriptionMessage.set(
+            `Job posting limit reached (${used}/${quota}). Upgrade your plan.`
+          );
+          return;
+        }
+
+        this.subscriptionMessage.set('');
+      },
+
+      error: () => {
+        this.subscriptionMessage.set(
+          'Unable to verify subscription.'
+        );
+      }
+    });
   }
 
   loadDashboard(): void {
@@ -294,6 +443,25 @@ export class HrDashboardComponent implements OnInit {
     });
   }
 
+  canPostJob(): boolean {
+    const sub = this.subscription();
+
+    if (!sub || sub.status !== 'ACTIVE') {
+      return false;
+    }
+
+    const quota = sub.plan?.job_post_quota ?? 0;
+
+    // Enterprise / Unlimited
+    if (quota >= 999) {
+      return true;
+    }
+
+    const used = sub.jobs_posted_used ?? 0;
+
+    return used < quota;
+  }
+
   getFunnelEntries(): { stage: string; count: number }[] {
     const funnel = this.data()?.hiring_funnel || {};
     return Object.entries(funnel).map(([stage, count]) => ({ stage, count }));
@@ -314,4 +482,68 @@ export class HrDashboardComponent implements OnInit {
   logout(): void {
     this.auth.logout();
   }
+
+  handleQuickAction(action:any): void {
+
+    if (action.label === 'Report Issue') {
+      this.openReportModal();
+      return;
+    }
+
+    this.router.navigate([action.route]);
+  }
+
+  openReportModal(): void {
+    this.showReportModal.set(true);
+  }
+
+  closeReportModal(): void {
+
+    this.showReportModal.set(false);
+
+    this.reportForm = {
+      subject: '',
+      priority: 'MEDIUM',
+      description: ''
+    };
+
+  }
+
+  submitReport(): void {
+
+    if (
+      !this.reportForm.subject.trim() ||
+      !this.reportForm.description.trim()
+    ) {
+      this.toast.warning('Please fill all required fields.');
+      return;
+    }
+
+    this.reportLoading.set(true);
+
+    this.reportService.createReport(this.reportForm).subscribe({
+      next: () => {
+
+        this.reportLoading.set(false);
+
+        this.toast.success('Report submitted successfully!');
+
+        setTimeout(() => {
+          this.closeReportModal();
+        }, 500);
+
+      },
+
+      error: () => {
+
+        this.reportLoading.set(false);
+
+        this.toast.error('Failed to submit report.');
+
+      }
+
+    });
+
+  }
+  
 }

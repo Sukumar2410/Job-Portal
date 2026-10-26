@@ -21,6 +21,8 @@ export const API = {
     // Admin user management (NEW)
     ADMIN_USERS: `${BASE_URL}/auth/admin/users/`,
     ADMIN_USER_DETAIL: (id: number) => `${BASE_URL}/auth/admin/users/${id}/`,
+    ADMIN_USER_DETAILS: (id: number) =>
+      `${BASE_URL}/auth/admin/users/${id}/details/`,
     ADMIN_USER_ACTIVATE: (id: number) => `${BASE_URL}/auth/admin/users/${id}/activate/`,
     ADMIN_USER_DEACTIVATE: (id: number) => `${BASE_URL}/auth/admin/users/${id}/deactivate/`,
     ADMIN_USER_VERIFY: (id: number) => `${BASE_URL}/auth/admin/users/${id}/verify/`,
@@ -33,7 +35,7 @@ export const API = {
     DETAIL: (slug: string) => `${BASE_URL}/companies/${slug}/`,
     VERIFY: (slug: string) => `${BASE_URL}/companies/${slug}/verify/`,
     UNVERIFY: (slug: string) => `${BASE_URL}/companies/${slug}/unverify/`,
-    ADMIN_DETAILS: (slug: string) => `/api/companies/${slug}/admin-details/`,
+    ADMIN_DETAILS: (slug: string) => `${BASE_URL}/companies/${slug}/admin-details/`,
     ALL: `${BASE_URL}/companies/all/`,
   },
 

@@ -32,23 +32,31 @@ import { AIChatbotComponent } from './candidate-assessments/ai-chatbot.component
 import { AiCareerCenterComponent } from './features/ai-career-center/ai-career-center.component';
 import { SocialFeedComponent } from './social-feed/social-feed.component';
 import { HrAiRecommendedCandidatesComponent } from './hr-ai-recommended-candidates/hr-ai-recommended-candidates.component';
+import { MyReportsComponent } from './reports/my-reports/my-reports.component';
+import { AdminReportsComponent } from './admin/admin-reports/admin-reports.component';
+import { ForgotPasswordComponent } from './forgot-password/forgot-password.component';
+import { ResetPasswordComponent } from './reset-password/reset-password.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
+  { path: 'forgot-password', component: ForgotPasswordComponent },
+  { path: 'reset-password', component: ResetPasswordComponent },
   { path: 'candidate-dashboard', component: CandidateDashboardComponent, canActivate: [authGuard] },
   { path: 'hr-dashboard', component: HrDashboardComponent, canActivate: [authGuard] },
   { path: 'admin-dashboard', component: AdminDashboardComponent, canActivate: [authGuard] },
+  { path: 'admin/reports', component: AdminReportsComponent, canActivate: [authGuard] },
   { path: 'jobs', component: JobsListComponent, canActivate: [authGuard] },
   { path: 'jobs/:slug', component: JobDetailsComponent, canActivate: [authGuard] },
   { path: 'my-applications', component: MyApplicationsComponent, canActivate: [authGuard] },
+  { path: 'my-reports', component: MyReportsComponent, canActivate: [authGuard] },
   { path: 'my-applications/:id', component: MyApplicationsComponent, canActivate: [authGuard] },
   { path: 'saved-jobs', component: SavedJobsComponent, canActivate: [authGuard] },
   { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
   { path: 'billing', component: BillingComponent, canActivate: [authGuard] },
   { path: 'payments', component: PaymentsComponent, canActivate: [authGuard] },
-  { path: 'revenue', component: RevenueComponent, canActivate: [authGuard] },
+  { path: 'revenue', component: RevenueComponent, canActivate:[authGuard] },
   { path: 'assessments', component: CandidateAssessmentsComponent, canActivate: [authGuard] },
   { path: 'assessments/session/:slug', component: AIChatbotComponent, canActivate: [authGuard] },
   { path: 'hr/company', component: HrCompanyComponent, canActivate: [authGuard] },

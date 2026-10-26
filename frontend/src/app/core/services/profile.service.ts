@@ -15,6 +15,16 @@ export class ProfileService {
     return this.api.patch(API.AUTH.CANDIDATE_PROFILE, data);
   }
 
+  uploadProfilePicture(file: File): Observable<any> {
+    const formData = new FormData();
+    formData.append('profile_picture', file);
+
+    return this.api.patchFormData(
+      API.AUTH.CANDIDATE_PROFILE,
+      formData
+    );
+  }
+
   uploadResume(file: File): Observable<any> {
     const formData = new FormData();
     formData.append('resume', file);

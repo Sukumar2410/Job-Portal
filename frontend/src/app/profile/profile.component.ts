@@ -21,6 +21,36 @@ import { AuthService } from '../core/services/auth.service';
           <p class="text-gray-600">Keep your profile up to date for better job matches.</p>
         </div>
 
+        <!-- Profile Picture -->
+        <div class="bg-white rounded-2xl shadow-soft p-6 mb-6">
+          <h2 class="text-xl font-bold mb-5">Profile Picture</h2>
+
+          <div class="flex items-center gap-6">
+            <img
+              [src]="profilePicturePreview() || profile()?.user?.profile_picture || 'assets/images/default-avatar.png'"
+              class="w-24 h-24 rounded-full object-cover border-4 border-purple-100"
+              alt="Profile Picture"
+            />
+
+            <div>
+              <input
+                type="file"
+                accept="image/*"
+                (change)="onProfileImageSelected($event)"
+                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer"
+              />
+
+              <p class="text-xs text-gray-500 mt-2">
+                JPG, PNG (Max 2 MB)
+              </p>
+
+              <div *ngIf="pictureError()" class="text-xs text-red-600 mt-1 font-semibold">
+                {{ pictureError() }}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div *ngIf="loading()" class="flex justify-center py-20">
           <svg class="animate-spin w-10 h-10 text-primary-600" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -52,7 +82,7 @@ import { AuthService } from '../core/services/auth.service';
             </div>
 
             <label class="block cursor-pointer">
-              <input type="file" (change)="onFileSelected($event)" accept=".pdf,.doc,.docx" class="hidden" />
+              <input type="file" (change)="onResumeSelected($event)" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden" />
               <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-primary-500 hover:bg-primary-50/30 transition-all">
                 <div class="text-3xl mb-2">📤</div>
                 <div class="font-semibold text-gray-700">
@@ -73,56 +103,72 @@ import { AuthService } from '../core/services/auth.service';
 
             <form (submit)="saveProfile($event)" class="space-y-4">
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Headline</label>
-                <input type="text" [(ngModel)]="form.headline" name="headline"
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Headline <span class="text-red-500">*</span>
+                </label>
+                <input type="text" required [(ngModel)]="form.headline" name="headline"
                   placeholder="e.g., Senior Full-Stack Developer"
                   class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none transition-all" />
               </div>
 
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Summary</label>
-                <textarea [(ngModel)]="form.summary" name="summary" rows="4"
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Summary <span class="text-red-500">*</span>
+                </label>
+                <textarea required [(ngModel)]="form.summary" name="summary" rows="4"
                   placeholder="Tell recruiters about your experience..."
                   class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none transition-all resize-none"></textarea>
               </div>
 
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Skills <span class="text-gray-400 text-xs">(comma-separated)</span></label>
-                <input type="text" [(ngModel)]="form.skills" name="skills"
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Skills <span class="text-red-500">*</span> <span class="text-gray-400 text-xs font-normal">(comma-separated)</span>
+                </label>
+                <input type="text" required [(ngModel)]="form.skills" name="skills"
                   placeholder="Python, Django, Angular, TypeScript"
                   class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none transition-all" />
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Experience (years)</label>
-                  <input type="number" [(ngModel)]="form.experience_years" name="experience_years" min="0"
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Experience (years) <span class="text-red-500">*</span>
+                  </label>
+                  <input type="number" required [(ngModel)]="form.experience_years" name="experience_years" min="0"
                     class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none transition-all" />
                 </div>
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Current Location</label>
-                  <input type="text" [(ngModel)]="form.current_location" name="current_location"
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Current Location <span class="text-red-500">*</span>
+                  </label>
+                  <input type="text" required [(ngModel)]="form.current_location" name="current_location"
                     placeholder="Bangalore, India"
                     class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none transition-all" />
                 </div>
               </div>
 
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Expected Salary (annual)</label>
-                <input type="number" [(ngModel)]="form.expected_salary" name="expected_salary"
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Expected Salary (annual) <span class="text-gray-400 text-xs font-normal">(optional)</span>
+                </label>
+                <input type="number" min="0" [(ngModel)]="form.expected_salary" name="expected_salary"
                   placeholder="800000"
                   class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none transition-all" />
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">LinkedIn URL</label>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    LinkedIn URL <span class="text-gray-400 text-xs font-normal">(optional)</span>
+                  </label>
                   <input type="url" [(ngModel)]="form.linkedin_url" name="linkedin_url"
                     placeholder="https://linkedin.com/in/username"
                     class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none transition-all" />
                 </div>
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">GitHub URL</label>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    GitHub URL <span class="text-gray-400 text-xs font-normal">(optional)</span>
+                  </label>
                   <input type="url" [(ngModel)]="form.github_url" name="github_url"
                     placeholder="https://github.com/username"
                     class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none transition-all" />
@@ -133,7 +179,7 @@ import { AuthService } from '../core/services/auth.service';
                 ✅ Profile saved successfully!
               </div>
 
-              <div *ngIf="saveError()" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <div *ngIf="saveError()" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 font-semibold">
                 {{ saveError() }}
               </div>
 
@@ -160,11 +206,15 @@ export class ProfileComponent implements OnInit {
   saveError = signal<string | null>(null);
   uploadError = signal<string | null>(null);
 
+  profilePicturePreview = signal<string | null>(null);
+  pictureError = signal<string | null>(null);
+  selectedProfilePicture = signal<File | null>(null);
+
   form = {
     headline: '',
     summary: '',
     skills: '',
-    experience_years: 0,
+    experience_years: 0 as number | null,
     current_location: '',
     expected_salary: null as number | null,
     linkedin_url: '',
@@ -173,6 +223,34 @@ export class ProfileComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadProfile();
+  }
+
+  onImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+
+    // Allow only JPG/PNG
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      this.uploadError.set('Only JPG and PNG images are allowed.');
+      return;
+    }
+
+    // Max 2 MB
+    if (file.size > 2 * 1024 * 1024) {
+      this.uploadError.set('Image must be smaller than 2 MB.');
+      return;
+    }
+
+    this.selectedProfilePicture.set(file);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.profilePicturePreview.set(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   }
 
   loadProfile(): void {
@@ -184,7 +262,7 @@ export class ProfileComponent implements OnInit {
           headline: p.headline || '',
           summary: p.summary || '',
           skills: p.skills || '',
-          experience_years: p.experience_years || 0,
+          experience_years: p.experience_years ?? 0,
           current_location: p.current_location || '',
           expected_salary: p.expected_salary || null,
           linkedin_url: p.linkedin_url || '',
@@ -196,18 +274,56 @@ export class ProfileComponent implements OnInit {
     });
   }
 
-  onFileSelected(event: Event): void {
+  onProfileImageSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
+
     if (!input.files || input.files.length === 0) return;
+
     const file = input.files[0];
 
-    if (file.size > 5 * 1024 * 1024) {
-      this.uploadError.set('File is too large. Max 5MB.');
+    if (file.size > 2 * 1024 * 1024) {
+      this.pictureError.set('Image size must be under 2MB.');
       return;
     }
 
-    this.uploading.set(true);
+    this.pictureError.set(null);
+
+    // Save file for backend upload
+    this.selectedProfilePicture.set(file);
+
+    // Preview image
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.profilePicturePreview.set(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  onResumeSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      this.uploadError.set('Only PDF, DOC and DOCX files are allowed.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      this.uploadError.set('Resume must be smaller than 5 MB.');
+      return;
+    }
+
     this.uploadError.set(null);
+    this.uploading.set(true);
 
     this.profileService.uploadResume(file).subscribe({
       next: () => {
@@ -216,7 +332,11 @@ export class ProfileComponent implements OnInit {
       },
       error: (err) => {
         this.uploading.set(false);
-        this.uploadError.set(err.error?.resume?.[0] || err.error?.detail || 'Upload failed.');
+        this.uploadError.set(
+          err.error?.resume?.[0] ||
+          err.error?.detail ||
+          'Failed to upload resume.'
+        );
       }
     });
   }
@@ -230,20 +350,62 @@ export class ProfileComponent implements OnInit {
 
   saveProfile(event: Event): void {
     event.preventDefault();
-    this.saving.set(true);
+
     this.saveError.set(null);
     this.saveSuccess.set(false);
 
-    this.profileService.updateCandidateProfile(this.form).subscribe({
-      next: () => {
-        this.saving.set(false);
-        this.saveSuccess.set(true);
-        setTimeout(() => this.saveSuccess.set(false), 3000);
-      },
-      error: (err) => {
-        this.saving.set(false);
-        this.saveError.set(err.error?.detail || 'Failed to save.');
-      }
-    });
+    if (!this.validateForm()) {
+      this.saveError.set('Please fill all required fields.');
+      return;
+    }
+
+    this.saving.set(true);
+
+    const saveCandidateData = () => {
+      this.profileService.updateCandidateProfile(this.form).subscribe({
+        next: (updatedProfile) => {
+          this.profile.set(updatedProfile);
+
+          if (updatedProfile.user?.profile_picture) {
+            this.profilePicturePreview.set(updatedProfile.user.profile_picture);
+          }
+
+          this.saving.set(false);
+          this.saveSuccess.set(true);
+
+          setTimeout(() => this.saveSuccess.set(false), 3000);
+        },
+        error: (err) => {
+          this.saving.set(false);
+          this.saveError.set(err.error?.detail || 'Failed to save profile.');
+        }
+      });
+    };
+
+    if (this.selectedProfilePicture()) {
+      this.profileService
+        .uploadProfilePicture(this.selectedProfilePicture()!)
+        .subscribe({
+          next: () => saveCandidateData(),
+          error: () => {
+            this.saving.set(false);
+            this.saveError.set('Failed to upload profile picture.');
+          }
+        });
+    } else {
+      saveCandidateData();
+    }
   }
+
+  private validateForm(): boolean {
+    return !!(
+      this.form.headline.trim() &&
+      this.form.summary.trim() &&
+      this.form.skills.trim() &&
+      this.form.current_location.trim() &&
+      this.form.experience_years !== null &&
+      this.form.experience_years >= 0
+    );
+  }
+
 }

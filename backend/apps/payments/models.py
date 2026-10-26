@@ -1,7 +1,7 @@
+import uuid
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-import uuid
 
 
 class PlanType(models.TextChoices):
@@ -40,14 +40,23 @@ class SubscriptionPlan(models.Model):
     direct_messaging = models.BooleanField(default=False)
     ai_recommendations = models.BooleanField(default=True)
 
-    # NEW: Trial support
+    # Trial support
     trial_period_days = models.PositiveIntegerField(
         default=0,
         help_text='Free trial in days. 0 = no trial.'
     )
 
-    features_list = models.JSONField(default=list, blank=True,
-                                     help_text='List of feature strings for display')
+    razorpay_plan_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Razorpay Plan ID (plan_xxxxx)"
+    )
+
+    features_list = models.JSONField(
+        default=list, blank=True,
+        help_text='List of feature strings for display'
+    )
 
     is_active = models.BooleanField(default=True)
     sort_order = models.PositiveIntegerField(default=0)
@@ -91,7 +100,6 @@ class Coupon(models.Model):
         help_text='Total redemptions allowed. Leave blank for unlimited.'
     )
     current_uses = models.PositiveIntegerField(default=0)
-
     max_uses_per_user = models.PositiveIntegerField(default=1)
 
     # Applicability
@@ -150,7 +158,6 @@ class Coupon(models.Model):
         )
 
     def calculate_discount(self, amount):
-        """Calculate the discount amount for a given subtotal"""
         if self.discount_type == CouponDiscountType.PERCENTAGE:
             return round(float(amount) * float(self.discount_value) / 100, 2)
         return min(float(self.discount_value), float(amount))
@@ -185,11 +192,25 @@ class Subscription(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
     auto_renew = models.BooleanField(default=False)
 
-    # NEW: Trial support
+    razorpay_subscription_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        unique=True
+    )
+
+    razorpay_customer_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        db_index=True
+    )
+
+    # Trial support
     is_trial = models.BooleanField(default=False)
     trial_ends_at = models.DateTimeField(null=True, blank=True)
 
-    # NEW: Coupon tracking
+    # Coupon tracking
     coupon_used = models.ForeignKey(
         Coupon, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='subscriptions'
@@ -233,20 +254,6 @@ class PaymentStatus(models.TextChoices):
     REFUNDED = 'REFUNDED', 'Refunded'
     PARTIALLY_REFUNDED = 'PARTIALLY_REFUNDED', 'Partially Refunded'
 
-class SubscriptionFeature(models.TextChoices):
-    JOB_POST = "JOB_POST", "Job Posts"
-    FEATURED_JOB = "FEATURED_JOB", "Featured Job Posts"
-
-    AI_CREDITS = "AI_CREDITS", "AI Credits"
-    AI_RESUME_ANALYSIS = "AI_RESUME_ANALYSIS", "AI Resume Analysis"
-    AI_RESUME_REWRITE = "AI_RESUME_REWRITE", "AI Resume Rewrite"
-    AI_CAREER_COACH = "AI_CAREER_COACH", "AI Career Coach"
-    MOCK_INTERVIEW = "MOCK_INTERVIEW", "Mock Interview"
-
-    DIRECT_MESSAGES = "DIRECT_MESSAGES", "Direct Messages"
-    RESUME_BOOST = "RESUME_BOOST", "Resume Boost"
-
-    REPORT_EXPORT = "REPORT_EXPORT", "Report Export"
 
 class Payment(models.Model):
     """Payment transaction records"""
@@ -263,15 +270,17 @@ class Payment(models.Model):
     status = models.CharField(
         max_length=25, choices=PaymentStatus.choices, default=PaymentStatus.PENDING
     )
-    payment_method = models.CharField(max_length=50, default='RAZORPAY',
-                                       help_text='e.g. CARD, UPI, NETBANKING, RAZORPAY, MOCK')
+    payment_method = models.CharField(
+        max_length=50, default='RAZORPAY',
+        help_text='e.g. CARD, UPI, NETBANKING, RAZORPAY, MOCK'
+    )
 
-    # NEW: Razorpay fields
+    # Razorpay fields
     razorpay_order_id = models.CharField(max_length=100, blank=True, db_index=True)
     razorpay_payment_id = models.CharField(max_length=100, blank=True, db_index=True)
     razorpay_signature = models.CharField(max_length=255, blank=True)
 
-    # NEW: Refund tracking
+    # Refund tracking
     refunded_amount = models.DecimalField(
         max_digits=10, decimal_places=2, default=0
     )
@@ -297,55 +306,79 @@ class Payment(models.Model):
 
     @property
     def net_amount(self):
-        """Amount after refunds"""
         return float(self.amount) - float(self.refunded_amount)
 
-class SubscriptionUsage(models.Model):
-    """
-    Tracks feature usage for each subscription.
-    One record = One feature usage.
-    """
 
+class SubscriptionFeature(models.TextChoices):
+    JOB_POST = "JOB_POST", "Job Posts"
+    FEATURED_JOB = "FEATURED_JOB", "Featured Job Posts"
+
+    AI_CREDITS = "AI_CREDITS", "AI Credits"
+    AI_RESUME_ANALYSIS = "AI_RESUME_ANALYSIS", "AI Resume Analysis"
+    AI_RESUME_REWRITE = "AI_RESUME_REWRITE", "AI Resume Rewrite"
+    AI_CAREER_COACH = "AI_CAREER_COACH", "AI Career Coach"
+    MOCK_INTERVIEW = "MOCK_INTERVIEW", "Mock Interview"
+
+    DIRECT_MESSAGES = "DIRECT_MESSAGES", "Direct Messages"
+    RESUME_BOOST = "RESUME_BOOST", "Resume Boost"
+
+    REPORT_EXPORT = "REPORT_EXPORT", "Report Export"
+
+
+class SubscriptionUsage(models.Model):
+    """Tracks feature usage for each subscription."""
     subscription = models.ForeignKey(
         Subscription,
         on_delete=models.CASCADE,
         related_name="usage_records"
     )
-
     feature_code = models.CharField(
         max_length=50,
         choices=SubscriptionFeature.choices
     )
-
     allowed_limit = models.PositiveIntegerField(
         default=0,
         help_text="Maximum allowed usage for this feature."
     )
-
     used = models.PositiveIntegerField(default=0)
-
-    last_reset_at = models.DateTimeField(
-        default=timezone.now
-    )
+    last_reset_at = models.DateTimeField(default=timezone.now)
 
     created_at = models.DateTimeField(auto_now_add=True)
-
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "subscription_usage"
-
         unique_together = ("subscription", "feature_code")
-
         ordering = ["subscription", "feature_code"]
 
     def __str__(self):
-        return (
-            f"{self.subscription} - "
-            f"{self.feature_code} "
-            f"({self.used}/{self.allowed_limit})"
-        )
+        return f"{self.subscription} - {self.feature_code} ({self.used}/{self.allowed_limit})"
 
     @property
     def remaining(self):
         return max(self.allowed_limit - self.used, 0)
+
+class ReminderType(models.TextChoices):
+    SEVEN_DAYS = '7_DAYS', '7 Days Before Expiry'
+    THREE_DAYS = '3_DAYS', '3 Days Before Expiry'
+    ONE_DAY = '1_DAY', '1 Day Before Expiry'
+
+
+class SubscriptionReminder(models.Model):
+    subscription = models.ForeignKey(
+        'payments.Subscription',
+        on_delete=models.CASCADE,
+        related_name='reminders_sent'
+    )
+    reminder_type = models.CharField(
+        max_length=10,
+        choices=ReminderType.choices
+    )
+    sent_at = models.DateTimeField(auto_now_add=True)
+    is_successful = models.BooleanField(default=True)
+    error_log = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'subscription_reminders'
+        unique_together = ('subscription', 'reminder_type')
+        ordering = ['-sent_at']

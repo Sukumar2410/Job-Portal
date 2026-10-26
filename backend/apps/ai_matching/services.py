@@ -115,7 +115,13 @@ def calculate_match_score(candidate, job):
     loc_pts = score_location(profile.current_location, job.location, job.work_mode)
     salary_pts = score_salary(profile.expected_salary, job.min_salary, job.max_salary)
 
-    total = round(skills_pts + exp_pts + loc_pts + salary_pts, 2)
+    total = round(
+        float(skills_pts) +
+        float(exp_pts) +
+        float(loc_pts) +
+        float(salary_pts),
+        2
+    )
 
     matched = list(candidate_skills & job_skills)
     missing = list(job_skills - candidate_skills)
@@ -126,7 +132,7 @@ def calculate_match_score(candidate, job):
             'skills': skills_pts,
             'experience': exp_pts,
             'location': loc_pts,
-            'salary': salary_pts,
+            'salary': float(salary_pts),
         },
         'matched_skills': matched,
         'missing_skills': missing,

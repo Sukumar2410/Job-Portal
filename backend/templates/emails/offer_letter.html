@@ -1,0 +1,58 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+
+<h2 style="margin:0 0 10px;">
+  Congratulations {{ candidate_name }}! 🎉
+</h2>
+
+<p style="color:#475569;font-size:15px;line-height:26px;">
+  We are delighted to inform you that you have been selected for the position of
+  <strong>{{ job_title }}</strong> at
+  <strong>{{ company_name }}</strong>.
+</p>
+
+<table width="100%" cellpadding="12" cellspacing="0"
+style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;margin:25px 0;">
+  <tr>
+    <td><strong>Position</strong></td>
+    <td>{{ job_title }}</td>
+  </tr>
+  <tr>
+    <td><strong>Company</strong></td>
+    <td>{{ company_name }}</td>
+  </tr>
+  <tr>
+    <td><strong>Annual Salary</strong></td>
+    <td>₹ {{ salary }}</td>
+  </tr>
+  <tr>
+    <td><strong>Joining Date</strong></td>
+    <td>{{ joining_date }}</td>
+  </tr>
+</table>
+
+<div style="background:#ECFDF5;border-left:4px solid #10B981;padding:16px;border-radius:8px;margin-bottom:25px;">
+  <strong style="color:#047857;">Offer Summary</strong>
+  <p style="margin:8px 0 0;color:#065F46;font-size:14px;">
+    Please review your offer details and complete the joining formalities before your joining date.
+  </p>
+</div>
+
+<div style="text-align:center;margin:30px 0;">
+  <a href="{{ portal_url }}"
+  style="background:#7C3AED;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-weight:bold;">
+    View Offer Details
+  </a>
+</div>
+
+<p style="color:#64748B;font-size:14px;line-height:24px;">
+  We look forward to welcoming you to our team and wish you a successful career with us.
+</p>
+
+<p style="margin-top:30px;">
+  Best Regards,<br>
+  <strong>{{ company_name }}</strong>
+</p>
+
+{% endblock %}

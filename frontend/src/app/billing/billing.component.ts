@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TopNavComponent } from '../shared/top-nav/top-nav.component';
 import { PaymentsService } from '../core/services/payments.service';
 import { AuthService } from '../core/services/auth.service';
-import { SubscriptionPlan, Subscription } from '../core/models/payment.model';
+import { SubscriptionPlan, Subscription, CreateOrderResponse, VerifyPaymentPayload } from '../core/models/payment.model';
 
 @Component({
   selector: 'app-billing',
@@ -57,14 +57,27 @@ import { SubscriptionPlan, Subscription } from '../core/models/payment.model';
               <div *ngIf="subscription() as sub; else noSubscription" class="mt-6 space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div class="rounded-2xl bg-slate-50 p-4">
-                    <p class="text-xs text-gray-500 uppercase tracking-[0.18em]">Plan</p>
-                    <p class="text-lg font-semibold text-gray-900 mt-2">{{ sub.plan.name }}</p>
-                    <p class="text-sm text-gray-500">{{ sub.plan.description }}</p>
+                    <p class="text-xs text-gray-500 uppercase">PLAN</p>
+                    <p class="text-lg font-semibold">
+                      {{ subscription()?.plan?.name || 'No Active Plan' }}
+                    </p>
+                    <p class="text-sm text-gray-500">
+                      {{ subscription()?.plan?.description || 'Choose a plan below' }}
+                    </p>
                   </div>
+
                   <div class="rounded-2xl bg-slate-50 p-4">
-                    <p class="text-xs text-gray-500 uppercase tracking-[0.18em]">Billing</p>
-                    <p class="text-lg font-semibold text-gray-900 mt-2">{{ sub.plan.billing_cycle_display || sub.plan.billing_cycle }}</p>
-                    <p class="text-sm text-gray-500">{{ formatCurrency(sub.plan.price, sub.plan.currency) }}</p>
+                    <p class="text-xs text-gray-500 uppercase">BILLING</p>
+                    <p>
+                      {{ subscription()?.plan?.billing_cycle || '-' }}
+                    </p>
+                    <p>
+                      {{
+                        subscription()?.plan
+                          ? formatCurrency(subscription()!.plan!.price, subscription()!.plan!.currency)
+                          : '-'
+                      }}
+                    </p>
                   </div>
                 </div>
 
@@ -141,58 +154,105 @@ import { SubscriptionPlan, Subscription } from '../core/models/payment.model';
               No plans are available right now. Please check back later or contact support.
             </div>
 
-            <div class="grid gap-6 lg:grid-cols-3" *ngIf="plans().length > 0">
-              <div *ngFor="let plan of plans()" class="group rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition-all hover:-translate-y-1 hover:shadow-lg">
-                <div class="flex items-center justify-between gap-4">
-                  <div>
-                    <p class="text-sm text-gray-500 uppercase tracking-[0.18em] font-semibold">{{ plan.plan_type_display || plan.plan_type || plan.tier_code || 'Plan' }}</p>
-                    <h3 class="mt-3 text-2xl font-bold text-gray-900">{{ plan.name || plan.tier_code || 'Unnamed Plan' }}</h3>
+            <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-4" *ngIf="plans().length > 0">
+
+              <div
+                *ngFor="let plan of plans()"
+                class="relative rounded-3xl bg-white p-6 border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                [ngClass]="{
+                  'border-emerald-500 ring-2 ring-emerald-100': plan.trial_period_days > 0,
+                  'border-violet-500 ring-2 ring-violet-100': plan.tier_code.includes('PREMIUM'),
+                  'border-amber-500 ring-2 ring-amber-100': plan.tier_code.includes('ENTERPRISE'),
+                  'border-slate-200': !plan.trial_period_days && !plan.tier_code.includes('PREMIUM') && !plan.tier_code.includes('ENTERPRISE')
+                }"
+              >
+
+                <!-- Trial Badge -->
+                <div
+                  *ngIf="plan.trial_period_days > 0"
+                  class="absolute -top-3 left-5 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-bold text-white"
+                >
+                  7-DAY FREE
+                </div>
+
+                <!-- Premium Badge -->
+                <div
+                  *ngIf="plan.tier_code.includes('PREMIUM')"
+                  class="absolute -top-3 left-5 rounded-full bg-violet-600 px-3 py-1 text-[11px] font-bold text-white"
+                >
+                  MOST POPULAR
+                </div>
+
+                <!-- Enterprise Badge -->
+                <div
+                  *ngIf="plan.tier_code.includes('ENTERPRISE')"
+                  class="absolute -top-3 left-5 rounded-full bg-amber-500 px-3 py-1 text-[11px] font-bold text-white"
+                >
+                  BEST VALUE
+                </div>
+
+                <!-- Plan Type -->
+                <p class="text-xs uppercase tracking-[0.28em] text-slate-500 font-semibold mb-3">
+                  {{ plan.plan_type === 'CANDIDATE' ? 'Candidate Plan' : 'Company Plan' }}
+                </p>
+
+                <!-- Name -->
+                <h3 class="text-2xl font-bold text-slate-900 leading-tight">
+                  {{ getDisplayPlanName(plan) }}
+                </h3>
+
+                <!-- Description -->
+                <p class="mt-2 text-sm text-slate-500 min-h-[48px]">
+                  {{ plan.description }}
+                </p>
+
+                <!-- Price -->
+                <div class="mt-5 flex items-end gap-1">
+                  <span class="text-4xl font-extrabold text-indigo-600">
+                    {{ plan.price === 0 ? '₹0' : formatCurrency(plan.price, plan.currency) }}
+                  </span>
+                  <span class="text-sm text-slate-500 mb-1">/month</span>
+                </div>
+
+                <!-- Trial Notice -->
+                <div
+                  *ngIf="plan.trial_period_days > 0"
+                  class="mt-4 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-700"
+                >
+                  Card required • No charge today • Cancel anytime
+                </div>
+
+                <!-- Features -->
+                <div class="mt-5 space-y-3 text-sm">
+                  <div
+                    *ngFor="let feature of getPlanFeatures(plan)"
+                    class="flex items-start gap-2"
+                  >
+                    <span class="text-emerald-600 mt-0.5">✓</span>
+                    <span>{{ feature }}</span>
                   </div>
-                  <p class="text-right text-3xl font-bold text-primary-600">{{ formatCurrency(plan.price, plan.currency) }}</p>
                 </div>
 
-                <p class="mt-4 text-sm text-gray-500">{{ plan.description || 'No description provided.' }}</p>
-
-                <div class="mt-6 space-y-3 text-sm text-gray-600">
-                  <p><strong>{{ plan.billing_cycle_display || plan.billing_cycle || 'Billing' }}</strong> billing</p>
-                  <p>{{ plan.job_post_quota }} job posts</p>
-                  <p>{{ plan.trial_period_days }} day trial</p>
-                </div>
-
+                <!-- CTA -->
                 <button
-                  type="button"
-                  (click)="selectPlan(plan)"
+                  (click)="subscribeToPlan(plan)"
                   [disabled]="isCurrentPlan(plan)"
-                  [ngClass]="
-                    isCurrentPlan(plan)
-                      ? 'bg-green-600 text-white cursor-not-allowed'
-                      : selectedPlan()?.id === plan.id
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  "
-                  class="mt-6 w-full rounded-2xl px-4 py-3 text-sm font-semibold transition-all"
+                  class="mt-6 w-full rounded-xl py-3 font-semibold transition-all"
+                  [ngClass]="{
+                    'bg-emerald-600 hover:bg-emerald-700 text-white': plan.trial_period_days > 0,
+                    'bg-violet-600 hover:bg-violet-700 text-white': !plan.trial_period_days,
+                    'bg-slate-200 text-slate-500 cursor-not-allowed': isCurrentPlan(plan)
+                  }"
                 >
                   {{
                     isCurrentPlan(plan)
-                      ? '✔ Current Plan'
-                      : selectedPlan()?.id === plan.id
-                        ? 'Selected'
-                        : 'Select Plan'
+                      ? 'Current Plan'
+                      : (plan.trial_period_days > 0
+                          ? 'Start 7-Day Free Trial'
+                          : 'Subscribe Now')
                   }}
                 </button>
 
-                <button
-                  *ngIf="selectedPlan()?.id === plan.id && !isCurrentPlan(plan)"
-                  type="button"
-                  (click)="subscribe(plan)"
-                  class="mt-3 w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 transition-all"
-                >
-                  {{
-                    subscription()
-                      ? 'Upgrade Plan'
-                      : 'Subscribe Now'
-                  }}
-                </button>
               </div>
             </div>
           </section>
@@ -209,11 +269,13 @@ export class BillingComponent implements OnInit {
   error = signal<string | null>(null);
   plans = signal<SubscriptionPlan[]>([]);
   subscription = signal<Subscription | null>(null);
-  selectedPlan = signal<SubscriptionPlan | null>(null);
+  selectedPlan: SubscriptionPlan | null = null;
   couponCode = '';
   couponMessage = signal('');
   couponSuccess = signal(false);
   validatingCoupon = signal(false);
+
+  currentUser: any = JSON.parse(localStorage.getItem('user') || '{}');
 
   ngOnInit(): void {
     this.loadData();
@@ -225,52 +287,105 @@ export class BillingComponent implements OnInit {
 
     this.paymentsService.listPlans().subscribe({
       next: (plans) => {
-
         const role = this.authService.userRole();
 
-        const filteredPlans = plans.filter(plan => {
+        // Use LET because we'll reorder it later
+        let filteredPlans = plans
+          .filter(plan => {
+            if (role === 'CANDIDATE') {
+              return plan.plan_type === 'CANDIDATE';
+            }
 
-          if (role === 'CANDIDATE') {
-            return plan.plan_type === 'CANDIDATE';
-          }
+            if (role === 'HR') {
+              return plan.plan_type === 'COMPANY';
+            }
 
-          if (role === 'HR') {
-            return plan.plan_type === 'COMPANY';
-          }
+            return true;
+          })
+          .sort((a, b) => {
+            const order: Record<string, number> = {
+              COMPANY_TRIAL: 1,
+              COMPANY_REGULAR: 2,
+              COMPANY_PREMIUM: 3,
+              COMPANY_ENTERPRISE: 4,
 
-          return true;
+              CANDIDATE_TRIAL: 1,
+              CANDIDATE_REGULAR: 2,
+              CANDIDATE_PREMIUM: 3,
+              CANDIDATE_ENTERPRISE: 4,
+            };
 
-        });
+            return (order[a.tier_code] || 99) - (order[b.tier_code] || 99);
+          });
+
+        // HR → force display order by plan name
+        if (role === 'HR') {
+          const hrOrder = [
+            'HR Trial Plan',
+            'Regular',
+            'Premium',
+            'Enterprise'
+          ];
+
+          filteredPlans = [...filteredPlans].sort(
+            (a, b) => hrOrder.indexOf(a.name) - hrOrder.indexOf(b.name)
+          );
+        }
+
+        // Candidate → force display order
+        if (role === 'CANDIDATE') {
+          const candidateOrder = [
+            'Candidate Pro Trial',
+            'Candidate Regular',
+            'Candidate Premium',
+            'Candidate Enterprise'
+          ];
+
+          filteredPlans = [...filteredPlans].sort(
+            (a, b) =>
+              candidateOrder.indexOf(a.name) -
+              candidateOrder.indexOf(b.name)
+          );
+        }
 
         this.plans.set(filteredPlans);
 
-        if (!this.selectedPlan() && filteredPlans.length) {
-          this.selectedPlan.set(filteredPlans[0]);
+        if (!this.selectedPlan && filteredPlans.length) {
+          this.selectedPlan = filteredPlans[0];
         }
       },
+
       error: (err) => {
         this.error.set(err?.error?.detail || 'Failed to load plans.');
         this.loading.set(false);
       },
+
       complete: () => {
-        this.paymentsService.getMySubscription().subscribe({
-          next: (sub: any) => {
-            if (sub.active === false) {
-              this.subscription.set(null);
-            } else {
-              this.subscription.set(sub);
-            }
-          },
-          error: () => this.loading.set(false),
-          complete: () => this.loading.set(false),
-        });
+        this.fetchCurrentSubscription();
       },
+    });
+  }
+
+  private fetchCurrentSubscription(): void {
+    this.paymentsService.getMySubscription().subscribe({
+      next: (sub: any) => {
+        if (!sub || sub.status === 'NONE' || !sub.plan) {
+          this.subscription.set(null);
+        } else {
+          this.subscription.set(sub);
+        }
+      },
+      error: () => {
+        this.subscription.set(null);
+        this.loading.set(false);
+      },
+      complete: () => this.loading.set(false)
     });
   }
 
   applyCoupon(event: Event): void {
     event.preventDefault();
-    const plan = this.selectedPlan();
+    const plan = this.selectedPlan;
     const code = this.couponCode.trim();
     if (!plan || !code) {
       this.couponMessage.set('Please select a plan and enter a coupon code.');
@@ -292,121 +407,134 @@ export class BillingComponent implements OnInit {
     });
   }
 
-  selectPlan(plan: SubscriptionPlan): void {
-    this.selectedPlan.set(plan);
-    this.couponMessage.set('');
-  }
+  subscribeToPlan(plan: SubscriptionPlan): void {
+    this.selectedPlan = plan;
 
-  subscribe(plan: SubscriptionPlan): void {
-    const payload = {
+    this.paymentsService.createOrder({
       plan_id: plan.id,
-      coupon_code: this.couponCode.trim() || undefined,
-      auto_renew: false,
-    };
+      coupon_code: this.couponCode.trim() || undefined
+    }).subscribe({
+      next: (order: any) => {
 
-    this.paymentsService.createOrder(payload).subscribe({
-      next: (res) => {
-        if (res.trial || res.free) {
-          this.couponMessage.set(res.message);
-          this.couponSuccess.set(true);
-          if (res.subscription) {
-            this.subscription.set(res.subscription);
-          }
+        // If backend already activated a free plan (future use)
+        if (order.free && order.subscription) {
+          this.subscription.set(order.subscription);
+          this.onSubscriptionActivated();
           return;
         }
 
-        this.couponMessage.set('Order created. Please complete payment via Razorpay.');
-        this.couponSuccess.set(true);
-        if (res.razorpay_order_id) {
-          this.openRazorpay(res);
-        }
+        // Trial and Paid plans BOTH open Razorpay
+        this.openRazorpay(order, plan);
       },
+
       error: (err) => {
-        this.couponMessage.set(err?.error?.detail || 'Subscription failed.');
-        this.couponSuccess.set(false);
-      },
+        alert(err?.error?.detail || err?.error?.error || 'Unable to create payment order');
+      }
     });
   }
 
-  openRazorpay(res: any): void {
-    const options = {
-      key: res.razorpay_key_id,
-      amount: res.amount,
-      currency: res.currency,
-      order_id: res.razorpay_order_id,
+  openRazorpay(order: any, plan: SubscriptionPlan): void {
+
+    const Razorpay = (window as any).Razorpay;
+
+    if (!Razorpay) {
+      alert('Razorpay SDK is not available.');
+      return;
+    }
+
+    const options: any = {
+      key: order.razorpay_key_id,
+
+      // ✅ Subscription checkout
+      order_id: order.razorpay_order_id,
+
+      amount: order.amount,
+
+      currency: order.currency,
 
       name: 'Enterprise Job Portal',
-      description: `Subscribe to ${res.plan_name}`,
 
-      handler: (response: any) => {
-        this.verifyPayment(response);
-      },
+      description: order.trial
+        ? `${order.trial_days}-Day Free Trial`
+        : `${plan.name} Subscription`,
+
+      image: 'assets/logo.png',
 
       prefill: {
-        name: '',
-        email: '',
+        name: this.currentUser?.full_name || '',
+        email: this.currentUser?.email || '',
+        contact: this.currentUser?.phone || ''
       },
 
       theme: {
-        color: '#4f46e5',
+        color: '#6D28D9'
       },
 
-      display: {
-        sequence: [
-          'upi',
-          'card',
-          'netbanking',
-          'wallet',
-          'paylater',
-        ],
+      modal: {
+        ondismiss: () => {
+          console.log('Subscription checkout cancelled');
+        },
+        confirm_close: true
       },
+
+      retry: {
+        enabled: true,
+        max_count: 3
+      },
+
+      // Enable all supported payment methods
+      method: {
+        upi: true,
+        card: true,
+        netbanking: true,
+        wallet: true,
+        emi: true,
+        paylater: true
+      },
+
+      handler: (response: any) => {
+
+        this.paymentsService.verifyPayment({
+          razorpay_subscription_id: response.razorpay_subscription_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature
+        }).subscribe({
+          next: () => {
+            alert('Subscription activated successfully!');
+            this.fetchCurrentSubscription();
+          },
+          error: () => {
+            alert('Payment verification failed.');
+          }
+        }); 
+
+      }
     };
 
-    this.loadRazorpayScript()
-      .then(() => {
-        const razorpay = new (window as any).Razorpay(options);
+    const razorpay = new Razorpay(options);
+    razorpay.open();
 
-        razorpay.open();
-      })
-      .catch(() => {
-        this.couponMessage.set(
-          'Unable to load payment gateway. Please try again later.'
-        );
-
-        this.couponSuccess.set(false);
-      });
   }
 
-  private loadRazorpayScript(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if ((window as any).Razorpay) {
-        resolve();
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject();
-      document.body.appendChild(script);
-    });
-  }
-
-  verifyPayment(payload: any): void {
+  verifyPayment(payload: VerifyPaymentPayload | any): void {
     this.paymentsService.verifyPayment(payload).subscribe({
-      next: (res) => {
-        this.couponMessage.set(res.message || 'Payment verified and subscription activated.');
-        this.couponSuccess.set(true);
-        if (res.subscription) {
-          this.subscription.set(res.subscription);
-        }
+      next: () => {
+        alert('Subscription activated successfully!');
+        this.onSubscriptionActivated();
       },
-      error: (err) => {
-        this.couponMessage.set(err?.error?.detail || 'Payment verification failed.');
-        this.couponSuccess.set(false);
-      },
+      error: () => alert('Payment verification failed')
     });
+  }
+
+  private onSubscriptionActivated(): void {
+    this.fetchCurrentSubscription();
+    this.loadData();
+
+    if (typeof (this.authService as any).loadUserProfile === 'function') {
+      (this.authService as any).loadUserProfile().subscribe();
+    } else if (typeof (this.authService as any).getUserProfile === 'function') {
+      (this.authService as any).getUserProfile().subscribe();
+    }
   }
 
   formatCurrency(value: number, currency: string): string {
@@ -417,13 +545,128 @@ export class BillingComponent implements OnInit {
     }).format(value);
   }
 
-    isCurrentPlan(plan: SubscriptionPlan): boolean {
-    const subscription = this.subscription();
+  getDisplayPlanName(plan: SubscriptionPlan): string {
+    switch (plan.tier_code) {
+      case 'CANDIDATE_TRIAL':
+      case 'COMPANY_TRIAL':
+        return '7-Day Trial';
 
+      case 'CANDIDATE_REGULAR':
+      case 'COMPANY_REGULAR':
+        return 'Regular';
+
+      case 'CANDIDATE_PREMIUM':
+      case 'COMPANY_PREMIUM':
+        return 'Premium';
+
+      case 'CANDIDATE_ENTERPRISE':
+      case 'COMPANY_ENTERPRISE':
+        return 'Enterprise';
+
+      default:
+        return plan.name;
+    }
+  }
+
+  isCurrentPlan(plan: SubscriptionPlan): boolean {
+    const subscription = this.subscription();
     if (!subscription || !subscription.plan) {
       return false;
     }
-
     return subscription.plan.id === plan.id;
   }
+
+  // ===============================
+  // PLAN UI HELPERS
+  // ===============================
+
+  getPlanFeatures(plan: SubscriptionPlan): string[] {
+    const features: string[] = [];
+
+    // HR Plans
+    if (plan.plan_type === 'COMPANY') {
+      features.push(
+        plan.job_post_quota >= 999
+          ? 'Unlimited Job Postings'
+          : `${plan.job_post_quota} Job Postings`
+      );
+
+      features.push('AI Candidate Matching');
+      features.push('Direct Candidate Messaging');
+
+      if (plan.advanced_analytics) {
+        features.push('Advanced Recruitment Analytics');
+      }
+
+      if (plan.priority_listing) {
+        features.push('Priority Job Listing');
+      }
+
+      if (plan.resume_boost) {
+        features.push('AI Resume Screening');
+      }
+
+      return features;
+    }
+
+    // Candidate Plans
+    features.push('AI Career Recommendations');
+    features.push('Direct HR Messaging');
+
+    if (plan.resume_boost) {
+      features.push('Priority Resume Visibility');
+    }
+
+    if (plan.advanced_analytics) {
+      features.push('Application Analytics');
+    }
+
+    if (plan.priority_listing) {
+      features.push('Featured Candidate Profile');
+    }
+
+    if (plan.tier_code.includes('ENTERPRISE')) {
+      features.push('Unlimited AI Career Assistant');
+    }
+
+    return features;
+  }
+
+  getPlanBadge(plan: SubscriptionPlan): string {
+    switch (plan.tier_code) {
+      case 'COMPANY_TRIAL':
+      case 'CANDIDATE_TRIAL':
+        return '7-DAY FREE';
+
+      case 'COMPANY_PREMIUM':
+      case 'CANDIDATE_PREMIUM':
+        return 'MOST POPULAR';
+
+      case 'COMPANY_ENTERPRISE':
+      case 'CANDIDATE_ENTERPRISE':
+        return 'BEST VALUE';
+
+      default:
+        return '';
+    }
+  }
+
+  isTrialPlan(plan: SubscriptionPlan): boolean {
+    return plan.trial_period_days > 0;
+  }
+
+  isPremium(plan: SubscriptionPlan): boolean {
+    return (
+      plan.tier_code === 'COMPANY_PREMIUM' ||
+      plan.tier_code === 'CANDIDATE_PREMIUM'
+    );
+  }
+
+  isEnterprise(plan: SubscriptionPlan): boolean {
+    return (
+      plan.tier_code === 'COMPANY_ENTERPRISE' ||
+      plan.tier_code === 'CANDIDATE_ENTERPRISE'
+    );
+  }
 }
+

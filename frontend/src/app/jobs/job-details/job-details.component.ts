@@ -9,6 +9,8 @@ import { ApplicationsService } from '../../core/services/applications.service';
 import { Job } from '../../core/models/job.model';
 import { MatchScoreResponse } from '../../core/models/application.model';
 
+import { ProfileService } from '../../core/services/profile.service';
+
 @Component({
   selector: 'app-job-details',
   standalone: true,
@@ -279,19 +281,33 @@ import { MatchScoreResponse } from '../../core/models/application.model';
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-2">Expected Salary</label>
-                <input type="number" [(ngModel)]="applyForm.expected_salary" name="expected_salary" placeholder="800000"
+                <input type="number" min="0" [(ngModel)]="applyForm.expected_salary" name="expected_salary" placeholder="800000"
                   class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none transition-all" />
               </div>
               <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-2">Notice Period (days)</label>
-                <input type="number" [(ngModel)]="applyForm.notice_period_days" name="notice_period_days" placeholder="30"
+                <input type="number" min="0" [(ngModel)]="applyForm.notice_period_days" name="notice_period_days" placeholder="30"
                   class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none transition-all" />
               </div>
             </div>
 
-            <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800">
-              💡 Your profile resume will be automatically attached to this application.
+            <div
+              class="rounded-xl p-3 text-sm border"
+              [ngClass]="
+                hasResume()
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-red-50 border-red-200 text-red-700'
+              "
+            >
+              <ng-container *ngIf="hasResume(); else noResume">
+                ✅ Your profile resume will be automatically attached.
+              </ng-container>
+
               <a routerLink="/profile" class="underline font-semibold">Upload resume →</a>
+
+              <ng-template #noResume>
+                ❌ Resume required. Please upload your resume from your Profile before applying.
+              </ng-template>
             </div>
 
             <div *ngIf="applyError()" class="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
@@ -319,6 +335,7 @@ export class JobDetailsComponent implements OnInit {
   private router = inject(Router);
   private jobsService = inject(JobsService);
   private applicationsService = inject(ApplicationsService);
+  private profileService = inject(ProfileService);
 
   job = signal<Job | null>(null);
   matchScore = signal<MatchScoreResponse | null>(null);
@@ -327,6 +344,8 @@ export class JobDetailsComponent implements OnInit {
   showApplyModal = signal(false);
   applying = signal(false);
   applyError = signal<string | null>(null);
+
+  hasResume = signal(false);
 
   applyForm = {
     cover_letter: '',
@@ -341,6 +360,16 @@ export class JobDetailsComponent implements OnInit {
       this.loading.set(false);
       return;
     }
+
+    this.profileService.getCandidateProfile().subscribe({
+      next: (profile) => {
+        this.hasResume.set(!!profile.resume);
+      },
+      error: () => {
+        this.hasResume.set(false);
+      }
+    });
+
     this.loadJob(slug);
   }
 
@@ -375,6 +404,15 @@ export class JobDetailsComponent implements OnInit {
 
   openApplyModal(): void {
     this.applyError.set(null);
+
+    if (!this.hasResume()) {
+      alert(
+        'Please upload your resume in your Profile before applying for jobs.'
+      );
+      this.router.navigate(['/profile']);
+      return;
+    }
+
     this.showApplyModal.set(true);
   }
 
@@ -390,10 +428,34 @@ export class JobDetailsComponent implements OnInit {
     this.applying.set(true);
     this.applyError.set(null);
 
-    const payload: any = { job: j.id };
-    if (this.applyForm.cover_letter) payload.cover_letter = this.applyForm.cover_letter;
-    if (this.applyForm.expected_salary) payload.expected_salary = this.applyForm.expected_salary;
-    if (this.applyForm.notice_period_days) payload.notice_period_days = this.applyForm.notice_period_days;
+    const payload: any = {
+      job: j.id
+    };
+
+    // Cover Letter
+    if (this.applyForm.cover_letter) {
+      payload.cover_letter = this.applyForm.cover_letter;
+    }
+
+    // Expected Salary Validation
+    if (this.applyForm.expected_salary !== null) {
+      if (this.applyForm.expected_salary < 0) {
+        alert('Expected salary cannot be negative.');
+        this.applying.set(false);
+        return;
+      }
+      payload.expected_salary = this.applyForm.expected_salary;
+    }
+
+    // Notice Period Validation
+    if (this.applyForm.notice_period_days !== null) {
+      if (this.applyForm.notice_period_days < 0) {
+        alert('Notice period cannot be negative.');
+        this.applying.set(false);
+        return;
+      }
+      payload.notice_period_days = this.applyForm.notice_period_days;
+    }
 
     this.applicationsService.applyToJob(payload).subscribe({
       next: () => {
@@ -403,8 +465,13 @@ export class JobDetailsComponent implements OnInit {
       },
       error: (err) => {
         this.applying.set(false);
-        const errObj = err.error || {};
-        this.applyError.set(errObj.detail || errObj.non_field_errors?.[0] || 'Application failed.');
+
+        this.applyError.set(
+          err?.error?.resume ||
+          err?.error?.detail ||
+          err?.error?.non_field_errors?.[0] ||
+          'Application failed.'
+        );
       }
     });
   }

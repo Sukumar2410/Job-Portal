@@ -258,8 +258,7 @@ import { JobsService } from '../../core/services/jobs.service';
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-2">Application Deadline</label>
-                <input type="date" [(ngModel)]="form.application_deadline" name="application_deadline"
-                  class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all" />
+                <input type="date" [(ngModel)]="form.application_deadline" name="application_deadline" [min]="minDeadlineDate" class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all"/>
               </div>
               <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-2">Max Applications</label>
@@ -334,6 +333,12 @@ export class HrJobFormComponent implements OnInit {
   success = signal<string | null>(null);
   editSlug = signal<string | null>(null);
   isEditMode = signal(false);
+
+  minDeadlineDate = (() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  })();
 
   form: any = {
     title: '',
